@@ -221,7 +221,7 @@ export default function ActivityPage() {
     <>
       {/* Background with stable elements */}
       <Navbar />
-      <div className="fixed inset-0 -z-10 pointer-events-none">
+      <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-800 to-green-900" />
 
         {/* Slower, more subtle gradient orbs */}
