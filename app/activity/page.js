@@ -50,6 +50,7 @@ export default function ActivityPage() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedLevel, setSelectedLevel] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -208,12 +209,18 @@ export default function ActivityPage() {
     },
   ];
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
   const filteredActivities = allActivities.filter((activity) => {
     const categoryMatch =
       selectedCategory === "all" || activity.category === selectedCategory;
     const levelMatch =
       selectedLevel === "all" || activity.level === selectedLevel;
-    return categoryMatch && levelMatch;
+    const searchMatch =
+      !normalizedQuery ||
+      activity.title.toLowerCase().includes(normalizedQuery) ||
+      activity.description.toLowerCase().includes(normalizedQuery);
+    return categoryMatch && levelMatch && searchMatch;
   });
 
   const handleStartActivity = async (activity) => {
@@ -449,8 +456,11 @@ export default function ActivityPage() {
                     <Search className="w-4 h-4 text-gray-400" />
                     <input
                       type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search activities..."
                       className="bg-transparent text-white placeholder-gray-500 outline-none w-full text-sm"
+                      aria-label="Search activities"
                     />
                   </div>
                 </div>
@@ -609,6 +619,7 @@ export default function ActivityPage() {
                     onClick={() => {
                       setSelectedCategory("all");
                       setSelectedLevel("all");
+                      setSearchQuery("");
                     }}
                     className="bg-gradient-to-r from-accent to-purple-500"
                   >
