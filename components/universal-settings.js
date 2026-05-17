@@ -239,8 +239,8 @@ export default function UniversalSettings() {
 
   const saveSettings = async () => {
     setIsLoading(true);
-    try {
-      
+   try {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       await new Promise((resolve) => setTimeout(resolve, 1000));
       setHasChanges(false);
     } catch (error) {

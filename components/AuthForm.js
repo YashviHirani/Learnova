@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Eye, EyeOff, Mail, Lock, Sparkles } from "lucide-react";
 import { ROLE_CONFIG, USER_ROLES } from "@/constants/userRoles";
+import { getPasswordStrength } from "@/utils/passwordStrength";
 
 export default function AuthForm({
   isLogin,
@@ -24,6 +25,10 @@ export default function AuthForm({
   onForgotPassword,
 }) {
   const [showPassword, setShowPassword] = useState(false);
+  const passwordStrength = useMemo(
+    () => getPasswordStrength(password),
+    [password]
+  );
 
   const clearError = (field) => {
     if (errors[field]) {
@@ -195,6 +200,27 @@ export default function AuthForm({
             </div>
             {errors.password && (
               <p className="text-red-400 text-sm mt-1">{errors.password}</p>
+            )}
+            {!isLogin && password.length > 0 && (
+              <div className="mt-3" aria-live="polite">
+                <div className="flex gap-1 mb-1.5">
+                  {[0, 1, 2, 3].map((segment) => (
+                    <div
+                      key={segment}
+                      className={`h-1.5 flex-1 rounded-full transition-colors ${
+                        segment < passwordStrength.score
+                          ? passwordStrength.barClass
+                          : "bg-gray-600"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p
+                  className={`text-xs font-medium ${passwordStrength.textClass}`}
+                >
+                  Password strength: {passwordStrength.label}
+                </p>
+              </div>
             )}
           </div>
 
