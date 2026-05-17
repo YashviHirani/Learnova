@@ -38,7 +38,6 @@ export const updateUserStat = async (userId, statField, value = 1) => {
     const statsSnap = await getDoc(statsRef);
     
     if (!statsSnap.exists()) {
-      // If doc doesn't exist for some reason, create it first
       await initializeUserStats(userId);
     }
 
