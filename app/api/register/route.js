@@ -14,6 +14,38 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const normalizeText = (value) =>
   typeof value === "string" ? value.trim() : "";
 
+const isValidImageMagicBytes = async (file) => {
+  try {
+    if (typeof file.slice !== "function") return null;
+    const headerBuffer = await file.slice(0, 12).arrayBuffer();
+    const arr = new Uint8Array(headerBuffer);
+    if (arr.length < 4) return null;
+
+    // Check PNG: 89 50 4E 47
+    if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4e && arr[3] === 0x47) {
+      return "image/png";
+    }
+
+    // Check JPEG: FF D8 FF
+    if (arr[0] === 0xff && arr[1] === 0xd8 && arr[2] === 0xff) {
+      return "image/jpeg";
+    }
+
+    // Check WebP: RIFF (bytes 0-3) and WEBP (bytes 8-11)
+    if (
+      arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46 &&
+      arr.length >= 12 &&
+      arr[8] === 0x57 && arr[9] === 0x45 && arr[10] === 0x42 && arr[11] === 0x50
+    ) {
+      return "image/webp";
+    }
+
+    return null;
+  } catch (err) {
+    return null;
+  }
+};
+
 const getImageExtension = (mimeType) => {
   switch (mimeType) {
     case "image/png":
@@ -38,6 +70,10 @@ export async function POST(req) {
       return jsonError("Name, rollNo, email, and photo are required", 400);
     }
 
+    if (typeof file.arrayBuffer !== "function" || typeof file.slice !== "function") {
+      return jsonError("Invalid file upload. Photo must be a valid image file.", 400);
+    }
+
     if (!EMAIL_PATTERN.test(email)) {
       return jsonError("Invalid email address", 400);
     }
@@ -48,6 +84,11 @@ export async function POST(req) {
 
     if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
       return jsonError("Invalid file type. Only JPEG, PNG, and WebP images are allowed.", 400);
+    }
+
+    const detectedMimeType = await isValidImageMagicBytes(file);
+    if (!detectedMimeType || detectedMimeType !== file.type) {
+      return jsonError("Invalid file content. The file headers do not match the expected image format.", 400);
     }
 
     // Get DB
