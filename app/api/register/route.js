@@ -62,6 +62,14 @@ export async function POST(req) {
       return jsonError("Name, rollNo, email, and photo are required", 400);
     }
 
+    if (!EMAIL_PATTERN.test(email)) {
+      const suggestion = suggestEmailCorrection(email);
+      const errorMessage = suggestion 
+        ? `Invalid email format. Did you mean ${suggestion}?` 
+        : "Invalid email format.";
+      return jsonError(errorMessage, 400);
+    }
+
     // 2. Prevent arbitrary registrations - Must register own email
     if (decodedToken.email !== email) {
       return jsonError("Forbidden: Cannot register face for a different user", 403);
