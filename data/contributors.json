@@ -3,7 +3,7 @@
     "username": "Premshaw23",
     "name": "Prem Shaw",
     "admin": true,
-    "contributions": 228
+    "contributions": 229
   },
   {
     "username": "RUSHILPATEL33",
@@ -38,23 +38,19 @@
     "contributions": 5
   },
   {
-    "username": "pragya0129",
-    "contributions": 4
-  },
-  {
     "username": "Copilot",
     "contributions": 4
   },
   {
-    "username": "AdityaSekharDas",
+    "username": "pragya0129",
+    "contributions": 4
+  },
+  {
+    "username": "tanishrajh",
     "contributions": 3
   },
   {
-    "username": "Nazia012",
-    "contributions": 3
-  },
-  {
-    "username": "NiranjanDoijode23",
+    "username": "Vaishnav-Hub9",
     "contributions": 3
   },
   {
@@ -62,23 +58,19 @@
     "contributions": 3
   },
   {
-    "username": "tanishrajh",
+    "username": "NiranjanDoijode23",
     "contributions": 3
   },
   {
-    "username": "Sha-lini3",
-    "contributions": 2
+    "username": "Nazia012",
+    "contributions": 3
   },
   {
-    "username": "Vaishnav-Hub9",
-    "contributions": 2
+    "username": "AdityaSekharDas",
+    "contributions": 3
   },
   {
-    "username": "Subham503",
-    "contributions": 2
-  },
-  {
-    "username": "Shayan-Bhowmik",
+    "username": "kannatinaveena",
     "contributions": 2
   },
   {
@@ -86,39 +78,19 @@
     "contributions": 2
   },
   {
-    "username": "kannatinaveena",
+    "username": "Shayan-Bhowmik",
     "contributions": 2
   },
   {
-    "username": "Achiever199",
-    "contributions": 1
+    "username": "Subham503",
+    "contributions": 2
   },
   {
-    "username": "Hussain053",
-    "contributions": 1
+    "username": "Sha-lini3",
+    "contributions": 2
   },
   {
-    "username": "Ketandora",
-    "contributions": 1
-  },
-  {
-    "username": "vaishnavijha12",
-    "contributions": 1
-  },
-  {
-    "username": "PojashriJM",
-    "contributions": 1
-  },
-  {
-    "username": "Pragya005",
-    "contributions": 1
-  },
-  {
-    "username": "Shrutika-Dahale",
-    "contributions": 1
-  },
-  {
-    "username": "PanditG4303",
+    "username": "Sagun-Bajpai",
     "contributions": 1
   },
   {
@@ -126,7 +98,35 @@
     "contributions": 1
   },
   {
-    "username": "Sagun-Bajpai",
+    "username": "PanditG4303",
+    "contributions": 1
+  },
+  {
+    "username": "Shrutika-Dahale",
+    "contributions": 1
+  },
+  {
+    "username": "Pragya005",
+    "contributions": 1
+  },
+  {
+    "username": "PojashriJM",
+    "contributions": 1
+  },
+  {
+    "username": "vaishnavijha12",
+    "contributions": 1
+  },
+  {
+    "username": "Ketandora",
+    "contributions": 1
+  },
+  {
+    "username": "Hussain053",
+    "contributions": 1
+  },
+  {
+    "username": "Achiever199",
     "contributions": 1
   }
 ]
