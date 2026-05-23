@@ -1,5 +1,6 @@
 "use client";
 import { useTheme } from "next-themes";
+import { translations } from "@/constants/translations";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Navbar } from "@/components/Navbar";
 import { motion } from "framer-motion";
@@ -25,6 +26,9 @@ import {
   Users,
   TrendingUp,
   Award,
+  Timer,
+  CalendarDays,
+  ListTodo,
 } from "lucide-react";
 import Link from "next/link";
 import { analytics } from "@/lib/firebaseConfig";
@@ -158,7 +162,7 @@ const SectionBadge = ({
   textClass = "text-purple-300",
 }) => (
   <div
-    className={`inline-flex items-center px-4 py-2 bg-gradient-to-r ${gradient} rounded-full border ${borderClass} backdrop-blur-sm mb-6`}
+    className={`inline-flex items-center px-4 py-2 bg-linear-to-r ${gradient} rounded-full border ${borderClass} backdrop-blur-sm mb-6`} // 2. Drop the template literal concatenation
   >
     <Icon className={`w-5 h-5 ${iconClass} mr-2`} />
     <span className={`${textClass} font-medium`}>{text}</span>
@@ -188,7 +192,7 @@ const ActionButton = ({
     "group inline-flex items-center px-8 py-4 rounded-full font-semibold transition-all duration-500 hover:scale-[1.02]";
   const variants = {
     primary:
-      "bg-gradient-to-r from-accent to-purple-500 text-black dark:text-white hover:shadow-xl hover:shadow-accent/25",
+      "bg-linear-to-r from-accent to-purple-500 text-black dark:text-white hover:shadow-xl hover:shadow-accent/25",
     secondary:
       "bg-white/10 text-black dark:text-white border border-white/20 hover:bg-white/20",
   };
@@ -202,7 +206,7 @@ const ActionButton = ({
     );
   }
   return (
-    <button className={contentClasses}>
+    <button className={`${contentClasses} focus:outline-none focus:ring-2 focus:ring-purple-500`}>
       {children}
     </button>
   );
@@ -210,6 +214,7 @@ const ActionButton = ({
 
 export default function AboutPage() {
   const { theme } = useTheme();
+  const [language, setLanguage] = useState("en");
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const isDark = mounted ? theme === "dark" : true;
@@ -293,7 +298,7 @@ export default function AboutPage() {
 
         {/* Mouse-following gradient orb */}
         <div
-          className="absolute w-96 h-96 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl"
+          className="absolute w-96 h-96 bg-linear-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl"
           style={mouseOrbStyle}
         />
 
@@ -317,6 +322,19 @@ export default function AboutPage() {
       <div className="min-h-screen relative z-50">
         <Navbar />
 
+        <div className="fixed top-24 right-6 z-[9999]">
+  <select
+    value={language}
+    onChange={(e) => setLanguage(e.target.value)}
+    className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow-lg border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400"
+    aria-label="Select language"
+  >
+    <option value="en">English</option>
+    <option value="hi">Hindi</option>
+  </select>
+</div>
+
+        
         {/* Hero Section */}
         <section
           id="hero"
@@ -332,7 +350,7 @@ export default function AboutPage() {
           />
 
           <div className="max-w-4xl mx-auto text-center relative">
-            <SectionBadge icon={Sparkles} text="Introducing Learnova" />
+            <SectionBadge icon={Sparkles} text={translations[language].welcome} />
 
             <div className="flex flex-wrap justify-center items-center mb-8 text-center gap-x-6 gap-y-4">
               <SplitText
@@ -351,7 +369,7 @@ export default function AboutPage() {
               />
               <SplitText
                 text="Education"
-                className="text-4xl sm:text-5xl md:text-7xl font-bold bg-gradient-to-r from-accent via-purple-400 to-pink-400 bg-clip-text text-transparent text-balance"
+                className="text-4xl sm:text-5xl md:text-7xl font-bold bg-linear-to-r from-accent via-purple-400 to-pink-400 bg-clip-text text-transparent text-balance"
                 delay={0.05}
                 duration={0.8}
                 ease="power3.out"
@@ -379,13 +397,13 @@ export default function AboutPage() {
           </div>
         </section>
         <div className="mt-8 flex justify-center">
-          <a
-            href="#mission"
-            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-all duration-300"
-          >
-            Explore More ↓
-          </a>
-        </div>
+  <a
+    href="#mission"
+    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-all duration-300"
+  >
+    {translations[language].explore}
+  </a>
+</div>
 
         {/* Mission Section */}
         <section
@@ -395,9 +413,9 @@ export default function AboutPage() {
           <div className="max-w-7xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
               <Reveal className="space-y-8">
-                <SectionBadge icon={Sparkles} text="Our Mission" />
+                <SectionBadge icon={Sparkles} text={translations[language].mission} />
 
-                <h2 className="text-2xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-accent bg-clip-text text-transparent">
+                <h2 className="text-2xl md:text-5xl font-bold bg-linear-to-r from-purple-400 via-pink-400 to-accent bg-clip-text text-transparent">
                   Empowering Educational Excellence
                 </h2>
 
@@ -417,7 +435,7 @@ export default function AboutPage() {
                     .
                   </p>
 
-                  <p className="md:text-lg text-gray-400 leading-relaxed">
+                  <p className="md:text-lg text-white leading-relaxed">
                     With Learnova, teachers can teach without distractions,
                     students can learn with purpose, and institutions can create
                     environments where every learner thrives.
@@ -431,8 +449,8 @@ export default function AboutPage() {
               </Reveal>
 
               <Reveal className="relative" delay={0.1}>
-                <div className="bg-gradient-to-br from-purple-500/10 via-accent/10 to-pink-500/10 rounded-3xl h-96 flex items-center justify-center border border-purple-500/20 backdrop-blur-sm relative overflow-hidden group hover:scale-[1.02] transition-all duration-700">
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                <div className="bg-linear-to-br from-purple-500/10 via-accent/10 to-pink-500/10 rounded-3xl h-96 flex items-center justify-center border border-purple-500/20 backdrop-blur-sm relative overflow-hidden group hover:scale-[1.02] transition-all duration-700">
+                  <div className="absolute inset-0 bg-linear-to-r from-purple-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
                   <div className="absolute top-4 right-4 w-3 h-3 bg-accent/60 rounded-full animate-pulse" />
                   <div
@@ -443,7 +461,7 @@ export default function AboutPage() {
                   <div className="text-center z-10">
                     <div className="relative mb-6">
                       <GraduationCap className="h-24 w-24 text-black dark:text-white mx-auto group-hover:scale-110 transition-transform duration-700" />
-                      <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-purple-500/20 rounded-full blur-xl group-hover:blur-2xl transition-all duration-700" />
+                      <div className="absolute inset-0 bg-linear-to-r from-accent/20 to-purple-500/20 rounded-full blur-xl group-hover:blur-2xl transition-all duration-700" />
                     </div>
                     <p className="text-xl font-semibold text-black dark:text-white group-hover:text-accent transition-colors duration-500">
                       Transforming Education
@@ -463,13 +481,13 @@ export default function AboutPage() {
           id="values"
           className="py-20 px-4 sm:px-6 lg:px-8 relative"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-purple-900/5 to-black/40 backdrop-blur-3xl" />
+          <div className="absolute inset-0 bg-linear-to-br from-black/40 via-purple-900/5 to-black/40 backdrop-blur-3xl" />
 
           <div className="max-w-7xl mx-auto relative">
             <Reveal className="text-center mb-20">
               <SectionBadge
                 icon={Heart}
-                text="Our Values"
+                text={translations[language].values}
                 gradient="from-accent/20 to-purple-500/20"
                 borderClass="border-accent/30"
                 iconClass="text-accent"
@@ -492,7 +510,7 @@ export default function AboutPage() {
                   <Card className="group h-full flex flex-col bg-white dark:bg-black/40 border-gray-200 dark:border-white/10 backdrop-blur-xl shadow-sm hover:shadow-lg hover:shadow-accent/10 hover:border-accent/50 transition-all duration-700 hover:scale-[1.02]">
                     <CardHeader className="text-center pb-4">
                       <div
-                        className={`mx-auto w-20 h-20 bg-gradient-to-br ${value.gradient} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-105 transition-transform duration-500 relative overflow-hidden`}
+                        className={`mx-auto w-20 h-20 bg-linear-to-br ${value.gradient} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-105 transition-transform duration-500 relative overflow-hidden`}
                       >
                         <value.icon className="h-10 w-10 text-white relative z-10" />
                         <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -513,13 +531,95 @@ export default function AboutPage() {
           </div>
         </section>
 
+        {/* Productivity Section */}
+        <section
+          id="productivity"
+          className="py-20 px-4 sm:px-6 lg:px-8 relative"
+        >
+          <div className="absolute inset-0 bg-linear-to-br from-accent/10 via-purple-500/10 to-pink-500/10 blur-3xl" />
+          <div className="max-w-7xl mx-auto relative">
+            <Reveal className="text-center mb-16">
+              <SectionBadge
+                icon={Sparkles}
+                text="Productivity Studio"
+                gradient="from-blue-500/20 to-purple-500/20"
+                borderClass="border-blue-500/30"
+                textColor="blue-300"
+              />
+              <h2 className="text-4xl md:text-5xl font-bold text-black dark:text-white mb-6">
+                Focus Tools Built for Modern Classrooms
+              </h2>
+              <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+                Plan the day, stay on schedule, and protect deep work sessions with a
+                productivity hub designed to match Learnova's smart workflow.
+              </p>
+            </Reveal>
+
+            <div className="grid lg:grid-cols-3 gap-8 mb-12">
+              {[
+                {
+                  title: "Pomodoro Flow",
+                  description:
+                    "Guided focus cycles with adaptive breaks, gentle timers, and streak tracking.",
+                  icon: Timer,
+                  gradient: "from-blue-500/20 to-cyan-500/20",
+                },
+                {
+                  title: "Calendar Pulse",
+                  description:
+                    "A clean month view with highlighted priorities and built-in agenda cues.",
+                  icon: CalendarDays,
+                  gradient: "from-purple-500/20 to-pink-500/20",
+                },
+                {
+                  title: "Task Orbit",
+                  description:
+                    "Create, sort, and complete tasks with quick status updates and reminders.",
+                  icon: ListTodo,
+                  gradient: "from-emerald-500/20 to-teal-500/20",
+                },
+              ].map((item, index) => (
+                <Reveal key={item.title} delay={index * 0.08}>
+                  <Card className="group bg-white dark:bg-black/40 border-gray-200 dark:border-white/10 backdrop-blur-xl shadow-sm hover:shadow-xl hover:shadow-accent/10 hover:border-accent/40 transition-all duration-700 hover:scale-[1.02]">
+                    <CardHeader className="text-center pb-4">
+                      <div
+                        className={`mx-auto w-20 h-20 ${item.gradient} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-105 transition-transform duration-500`}
+                      >
+                        <item.icon className="h-10 w-10 text-accent" />
+                      </div>
+                      <CardTitle className="text-gray-950 dark:text-white text-xl">
+                        {item.title}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <CardDescription className="text-gray-600 dark:text-gray-300 leading-relaxed">
+                        {item.description}
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                </Reveal>
+              ))}
+            </div>
+
+            <Reveal className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <ActionButton href="/productivity">
+                Explore Productivity Hub
+                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+              </ActionButton>
+              <ActionButton href="/contact" variant="secondary">
+                Request a Workflow Demo
+              </ActionButton>
+            </Reveal>
+          </div>
+        </section>
+
         {/* Team Section */}
         <section id="team" className="py-20 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <Reveal className="text-center mb-20">
               <SectionBadge
                 icon={Users}
-                text="Our Team"
+                text={translations[language].team}
                 gradient="from-emerald-500/20 to-teal-500/20"
                 borderClass="border-emerald-500/30"
                 iconClass="text-emerald-400"
@@ -542,7 +642,7 @@ export default function AboutPage() {
                     <CardContent className="pt-8 text-center flex flex-col flex-grow">
                       <div className="relative mb-6">
                         <div
-                          className={`w-28 h-28 bg-gradient-to-br ${member.color} rounded-full flex items-center justify-center mx-auto group-hover:scale-105 transition-transform duration-500 relative overflow-hidden`}
+                          className={`w-28 h-28 bg-linear-to-br ${member.color} rounded-full flex items-center justify-center mx-auto group-hover:scale-105 transition-transform duration-500 relative overflow-hidden`}
                         >
                           <span className="text-3xl font-bold text-white relative z-10">
                             {member.initials}
@@ -577,7 +677,7 @@ export default function AboutPage() {
           id="stats"
           className="py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-accent/10 via-purple-500/10 to-pink-500/10 backdrop-blur-3xl">
+          <div className="absolute inset-0 bg-linear-to-r from-accent/10 via-purple-500/10 to-pink-500/10 backdrop-blur-3xl">
             <div
               className="absolute inset-0 opacity-30"
               style={{
@@ -590,7 +690,7 @@ export default function AboutPage() {
             <Reveal className="text-center mb-20">
               <SectionBadge
                 icon={TrendingUp}
-                text="Our Impact"
+                text={translations[language].impact}
                 gradient="from-white/10 to-white/10"
                 borderClass="border-white/20"
                 iconClass="text-white"
@@ -615,7 +715,7 @@ export default function AboutPage() {
                       <div className="text-4xl md:text-5xl font-bold text-black dark:text-white mb-3 group-hover:text-accent transition-colors duration-500">
                         {stat.number}
                       </div>
-                      <p className="text-black dark:text-white/80 font-medium text-lg group-hover:text-black dark:text-white transition-colors duration-500">
+                      <p className="text-black dark:text-white/80 font-medium text-lg group-hover:text-black dark:group-hover:text-white transition-colors duration-500">
                         {stat.label}
                       </p>
                     </div>
@@ -633,7 +733,7 @@ export default function AboutPage() {
         >
           <div className="max-w-7xl mx-auto relative">
             <Reveal className="text-center mb-16">
-              <SectionBadge icon={Sparkles} text="Our Impact" />
+              <SectionBadge icon={Sparkles} text={translations[language].impact} />
               <h2 className="text-4xl md:text-5xl font-bold text-black dark:text-white mb-6">
                 Transforming Education for Everyone
               </h2>
@@ -646,7 +746,7 @@ export default function AboutPage() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 items-stretch">
               {IMPACT_DATA.map((impact, index) => (
                 <Reveal key={impact.title} delay={index * 0.08}>
-                  <div className="bg-black rounded-3xl p-8 flex flex-col justify-center items-center text-center h-full min-h-[260px] border border-white/10">
+                  <div className="bg-black rounded-3xl p-8 flex flex-col justify-center items-center text-center h-full min-h-65 border border-white/10">
                     <impact.icon className="w-12 h-12 text-accent mx-auto mb-6 group-hover:scale-110 transition-transform duration-500" />
                     <h3 className="text-xl font-semibold text-black dark:text-white mb-3 group-hover:text-accent transition-colors duration-500">
                       {impact.title}
@@ -664,7 +764,7 @@ export default function AboutPage() {
         {/* CTA Section */}
         <section id="get-started" className="py-20 px-4 sm:px-6 lg:px-8">
           <Reveal className="max-w-4xl mx-auto text-center">
-            <div className="bg-gradient-to-br dark:from-black/50 to-purple-900/30 rounded-3xl p-12 border border-accent/30 backdrop-blur-xl hover:border-accent/50 transition-all duration-700">
+            <div className="bg-linear-to-br dark:from-black/50 to-purple-900/30 rounded-3xl p-12 border border-accent/30 backdrop-blur-xl hover:border-accent/50 transition-all duration-700">
               <h2 className="text-3xl md:text-4xl font-bold text-black dark:text-white mb-6">
                 Ready to Transform Your Institution?
               </h2>
