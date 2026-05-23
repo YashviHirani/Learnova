@@ -51,6 +51,9 @@ const AttendanceValidation = ({ onValidationSuccess }) => {
         );
         if (settingsDoc.exists()) {
           const settingsData = settingsDoc.data();
+          if (settingsData) {
+            delete settingsData.passcode;
+          }
           setSettings(settingsData);
           checkTimeValidity(settingsData.timeWindow);
         }
@@ -188,11 +191,12 @@ const AttendanceValidation = ({ onValidationSuccess }) => {
     setIsLoading(true);
     setPasscodeError("");
     try {
+      const token = await user.getIdToken();
       const response = await fetch("/api/attendance/validate-passcode", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${await user.getIdToken()}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ passcode }),
       });

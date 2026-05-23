@@ -1,5 +1,4 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -47,9 +46,40 @@ export function Navbar() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [prefersDark, setPrefersDark] = useState(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const saved = localStorage.getItem("theme");
+      if (saved === "light") return false;
+      if (saved === "dark") return true;
+      return (
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches
+      );
+    } catch (e) {
+      return null;
+    }
+  });
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Detect system preference on mount so initial render matches user's OS
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      const update = (e) => setPrefersDark(e.matches);
+      if (mq.addEventListener) mq.addEventListener("change", update);
+      else mq.addListener && mq.addListener(update);
+      return () => {
+        if (mq.removeEventListener) mq.removeEventListener("change", update);
+        else mq.removeListener && mq.removeListener(update);
+      };
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   const scrollProgressValue = Number.isFinite(scrollProgress) ? scrollProgress : 0;
@@ -194,18 +224,17 @@ export function Navbar() {
       <nav
         className="fixed w-full top-0 left-0 right-0 z-[70] transition-all duration-300 ease-out"
         style={{
-          backgroundColor: !mounted 
-            ? "rgba(255, 255, 255, 0.95)" 
-            : theme === "dark"
-            ? `rgba(0,0,0,${0.82 + scrollProgressValue * 0.12})`
-            : `rgba(255,255,255,0.98)`,
+          // Use resolved theme when mounted; otherwise fall back to system preference
+          backgroundColor:
+            (mounted ? theme : prefersDark ? "dark" : "light") === "dark"
+              ? `rgba(0,0,0,${0.82 + scrollProgressValue * 0.12})`
+              : `rgba(255,255,255,0.98)`,
           backdropFilter: `blur(20px)`,
           WebkitBackdropFilter: `blur(20px)`,
-          borderBottom: !mounted 
-            ? "1px solid rgba(0, 0, 0, 0.08)" 
-            : theme === "dark"
-            ? `1px solid rgba(255,255,255,0.1)`
-            : `1px solid rgba(0,0,0,0.08)`,
+          borderBottom:
+            (mounted ? theme : prefersDark ? "dark" : "light") === "dark"
+              ? `1px solid rgba(255,255,255,0.1)`
+              : `1px solid rgba(0,0,0,0.08)`,
         }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
@@ -237,7 +266,7 @@ export function Navbar() {
                     className={`px-4 py-2 rounded-lg transition-all duration-300 ${
                       isActive
                         ? "bg-accent/20 text-gray-950 dark:text-white font-medium"
-                        : "text-gray-700 dark:text-gray-200 hover:text-gray-950 dark:hover:text-white hover:bg-accent/10"
+                        : "text-gray-800 dark:text-gray-100 hover:text-gray-950 dark:hover:text-white hover:bg-accent/10"
                     }`}
                   >
                     {item.label}
@@ -249,7 +278,8 @@ export function Navbar() {
               {mounted && (
                 <button
                   onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                  className="p-2 rounded-xl text-gray-800 dark:text-gray-100 hover:text-gray-950 dark:hover:text-white hover:bg-accent/10 transition-all duration-300"
+                  className="p-2 rounded-xl text-gray-800 dark:text-gray-100 hover:text-gray-950 dark:hover:text-white hover:bg-accent/10 transition-all duration-300 cursor-pointer"
+                  aria-label="Toggle theme"
                 >
                   {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
                 </button>
@@ -282,7 +312,8 @@ export function Navbar() {
                   <div className="relative">
                     <button
                       onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                      className="relative p-2 rounded-xl text-gray-800 dark:text-gray-100 hover:text-gray-950 dark:hover:text-white hover:bg-accent/10 transition-all duration-300"
+                      className="relative p-2 rounded-xl text-gray-800 dark:text-gray-100 hover:text-gray-950 dark:hover:text-white hover:bg-accent/10 transition-all duration-300 cursor-pointer"
+                      aria-label="View notifications"
                     >
                       <Bell className="h-5 w-5" />
                       {unreadCount > 0 && (
@@ -468,7 +499,7 @@ export function Navbar() {
                       {getUserPhoto() && (
                         <Image
                           src={getUserPhoto()}
-                          alt="Profile"
+                          alt="User profile avatar"
                           width={56}
                           height={56}
                           className="rounded-full border-2 border-accent/50 object-cover shadow-lg"

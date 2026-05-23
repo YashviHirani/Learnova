@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { withErrorHandler } from "@/lib/error-handler";
 import { requireAuth } from "@/lib/rbac";
+import { requireRole } from "@/lib/rbac";
+import { ValidationError } from "@/lib/errors";
+import { initializeFirebase } from "@/lib/firebase-admin";
 import admin from "firebase-admin";
 
 export const dynamic = "force-dynamic";

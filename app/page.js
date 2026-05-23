@@ -149,19 +149,19 @@ const IMPACT_DATA = [
   },
 ];
 
-// ✅ UPDATED FIXED COMPONENT
 const SectionBadge = ({
   icon: Icon,
   text,
   gradient = "from-purple-500/20 to-pink-500/20",
-  borderClass = "border-purple-500/30", // 1. Pass the full class name string here
-  textColor = "purple-300",
+  borderClass = "border-purple-500/30",
+  iconClass = "text-purple-400",
+  textClass = "text-purple-300",
 }) => (
   <div
-    className={`inline-flex items-center px-4 py-2 bg-gradient-to-r ${gradient} rounded-full border ${borderClass} backdrop-blur-sm mb-6`} // 2. Drop the template literal concatenation
+    className={`inline-flex items-center px-4 py-2 bg-gradient-to-r ${gradient} rounded-full border ${borderClass} backdrop-blur-sm mb-6`}
   >
-    <Icon className={`w-5 h-5 text-${textColor.split("-")[0]}-400 mr-2`} />
-    <span className={`text-${textColor} font-medium`}>{text}</span>
+    <Icon className={`w-5 h-5 ${iconClass} mr-2`} />
+    <span className={`${textClass} font-medium`}>{text}</span>
   </div>
 );
 
@@ -471,8 +471,9 @@ export default function AboutPage() {
                 icon={Heart}
                 text="Our Values"
                 gradient="from-accent/20 to-purple-500/20"
-                borderColor="accent/30"
-                textColor="accent"
+                borderClass="border-accent/30"
+                iconClass="text-accent"
+                textClass="text-accent"
               />
               
 
@@ -520,8 +521,9 @@ export default function AboutPage() {
                 icon={Users}
                 text="Our Team"
                 gradient="from-emerald-500/20 to-teal-500/20"
-                borderColor="emerald-500/30"
-                textColor="emerald-400"
+                borderClass="border-emerald-500/30"
+                iconClass="text-emerald-400"
+                textClass="text-emerald-400"
               />
 
               <h2 className="text-4xl md:text-5xl font-bold text-black dark:text-white mb-6">
@@ -590,8 +592,9 @@ export default function AboutPage() {
                 icon={TrendingUp}
                 text="Our Impact"
                 gradient="from-white/10 to-white/10"
-                borderColor="white/20"
-                textColor="white"
+                borderClass="border-white/20"
+                iconClass="text-white"
+                textClass="text-white"
               />
 
               <h2 className="text-4xl md:text-5xl font-bold text-black dark:text-white mb-6">
