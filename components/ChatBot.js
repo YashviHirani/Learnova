@@ -166,7 +166,7 @@ const LearnovaChatbot = () => {
 
   // --- Render Layout ---
   return (
-    <div className="flex flex-col h-screen max-w-4xl mx-auto bg-slate-50 border-x border-slate-200 shadow-sm">
+    <div className="flex flex-col h-[100dvh] max-w-4xl w-full mx-auto bg-slate-50 border-x border-slate-200 shadow-sm px-0 sm:px-0">
       
       {/* Header Panel */}
       <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200">
