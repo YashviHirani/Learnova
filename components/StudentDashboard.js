@@ -69,18 +69,41 @@ const StudentDashboard = () => {
   const [gamificationData, setGamificationData] = useState(null);
   const [viewMode, setViewMode] = useState("heatmap");
 
-  // Mock attendance stats
-  const attendanceStats = {
-    present: 18,
-    absent: 2,
-    late: 1,
-    percentage: 92,
-  };
+  // Derived calculation from recentActivity state with safe fallback default metrics
+  const attendanceStats = useMemo(() => {
+    const defaultStats = { present: 0, absent: 0, late: 0, percentage: 0, total: 0 };
+    if (!recentActivity || !Array.isArray(recentActivity) || recentActivity.length === 0) {
+      return defaultStats;
+    }
 
-  const attendancePerformance = {
-    attendancePercentage: attendanceStats.percentage,
-    streakDays: 8,
-  };
+    const counts = recentActivity.reduce(
+      (acc, curr) => {
+        const status = curr?.status?.toLowerCase();
+        if (status === "present") acc.present++;
+        else if (status === "absent") acc.absent++;
+        else if (status === "late") acc.late++;
+        return acc;
+      },
+      { present: 0, absent: 0, late: 0 }
+    );
+
+    const total = counts.present + counts.absent + counts.late;
+    const percentage = total > 0 ? Math.round(((counts.present + counts.late) / total) * 100) : 0;
+
+    return {
+      ...counts,
+      total,
+      percentage,
+    };
+  }, [recentActivity]);
+
+  // Safe calculated attendance performance details for the AchievementSection
+  const attendancePerformance = useMemo(() => {
+    return {
+      attendancePercentage: attendanceStats?.percentage ?? 0,
+      streakDays: gamificationData?.currentStreak ?? 8, // fallback to mock default of 8 days
+    };
+  }, [attendanceStats, gamificationData]);
 
   // Mock schedule data is now imported from @/constants/mockData
   useEffect(() => {
@@ -413,25 +436,25 @@ const StudentDashboard = () => {
                 <StatCard
                   color="green"
                   label="Present"
-                  value={attendanceStats.present}
+                  value={attendanceStats?.present ?? 0}
                 />
 
                 <StatCard
                   color="red"
                   label="Absent"
-                  value={attendanceStats.absent}
+                  value={attendanceStats?.absent ?? 0}
                 />
 
                 <StatCard
                   color="yellow"
                   label="Late"
-                  value={attendanceStats.late}
+                  value={attendanceStats?.late ?? 0}
                 />
 
                 <StatCard
                   color="blue"
                   label="Overall"
-                  value={`${attendanceStats.percentage}%`}
+                  value={`${attendanceStats?.percentage ?? 0}%`}
                 />
               </div>
 
@@ -442,7 +465,7 @@ const StudentDashboard = () => {
                   </span>
 
                   <span className="text-accent font-semibold">
-                    {attendanceStats.percentage}%
+                    {attendanceStats?.percentage ?? 0}%
                   </span>
                 </div>
 
@@ -450,7 +473,7 @@ const StudentDashboard = () => {
                   <div
                     className="h-full bg-gradient-to-r from-green-500 to-blue-500 rounded-full transition-all duration-700"
                     style={{
-                      width: `${attendanceStats.percentage}%`,
+                      width: `${attendanceStats?.percentage ?? 0}%`,
                     }}
                   />
                 </div>
