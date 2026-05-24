@@ -10,6 +10,31 @@ const JWKS = createRemoteJWKSet(JWKS_URL);
 
 const FIREBASE_PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
+const BASE64_CHARS =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+function generateNonce() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+
+  let nonce = "";
+  for (let index = 0; index < bytes.length; index += 3) {
+    const byte1 = bytes[index];
+    const byte2 = bytes[index + 1];
+    const byte3 = bytes[index + 2];
+
+    nonce += BASE64_CHARS[byte1 >> 2];
+    nonce += BASE64_CHARS[((byte1 & 0x03) << 4) | (byte2 >> 4)];
+    nonce +=
+      index + 1 < bytes.length
+        ? BASE64_CHARS[((byte2 & 0x0f) << 2) | (byte3 >> 6)]
+        : "=";
+    nonce += index + 2 < bytes.length ? BASE64_CHARS[byte3 & 0x3f] : "=";
+  }
+
+  return nonce;
+}
+
 /**
  * Verifies a Firebase ID token's RS256 signature and all standard claims.
  * Runs entirely in the Edge Runtime using the jose library.
@@ -102,9 +127,7 @@ export async function middleware(request) {
           const res = await fetch(
             `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${payload.sub}`,
             {
-              headers: { Authorization: `Bearer ${authToken}` },
-              cache: "force-cache",
-              next: { revalidate: 300 } // Cache securely at the edge for 5 minutes
+              headers: { Authorization: `Bearer ${authToken}` }
             }
           );
           if (res.ok) {
