@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Mail, Phone } from "lucide-react";
+import { BookOpen, Mail, Phone, Keyboard } from "lucide-react";
 import { CONTACT_INFO } from '../constants/contact'; // Note: Adjust path if needed
 
 
@@ -9,6 +9,7 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
   const quickLinks = [
     { label: "Home", href: "/" },
+    { label: "Productivity", href: "/productivity" },
     { label: "Activities", href: "/activity" },
     { label: "Contact", href: "/contact" },
     { label: "Register", href: "/register" },
@@ -18,6 +19,7 @@ export default function Footer() {
   const sectionLinks = [
     { label: "Mission", href: "/#mission" },
     { label: "Values", href: "/#values" },
+    { label: "Productivity", href: "/#productivity" },
     { label: "Team", href: "/#team" },
     { label: "Impact", href: "/#impact" },
     { label: "Get Started", href: "/#get-started" },
@@ -58,12 +60,21 @@ export default function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-muted-foreground transition-colors hover:text-purple-300"
+                    className="text-muted-foreground transition-colors hover:text-purple-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50 rounded-md px-1.5 py-0.5"
                   >
                     {link.label}
                   </Link>
                 </li>
               ))}
+              <li>
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent("learnova:open-shortcuts"))}
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-purple-300 transition-colors text-left font-normal cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50 rounded-md px-1.5 py-0.5"
+                >
+                  <Keyboard className="h-4 w-4 text-purple-300" />
+                  <span>Keyboard Shortcuts</span>
+                </button>
+              </li>
             </ul>
           </div>
 
@@ -76,7 +87,7 @@ export default function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-muted-foreground transition-colors hover:text-purple-300"
+                    className="text-muted-foreground transition-colors hover:text-purple-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50 rounded-md px-1.5 py-0.5"
                   >
                     {link.label}
                   </Link>
@@ -92,7 +103,7 @@ export default function Footer() {
             <ul className="space-y-3 text-sm">
               <li className="flex items-center gap-3 text-muted-foreground">
                 <Mail className="h-4 w-4 text-purple-300" />
-                <span>shawprem217@gmail.com</span>
+                <span>{CONTACT_INFO.email}</span>
               </li>
               <li className="flex items-center gap-3 text-muted-foreground">
                 <Phone className="h-4 w-4 text-purple-300" />
@@ -102,9 +113,9 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col gap-4 border-t border-slate-800/80 pt-6 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-12 flex flex-col gap-4 border-t border-slate-800/80 pt-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>(c) {currentYear} Learnova. All rights reserved.</p>
-          <div className="flex flex-wrap items-center gap-4 text-xs uppercase tracking-[0.2em] text-slate-500">
+          <div className="flex flex-wrap items-center gap-4 text-xs uppercase tracking-[0.2em] text-muted-foreground">
             <span className="text-purple-300/80">Trusted by educators</span>
             <span className="hidden h-1 w-1 rounded-full bg-slate-700 sm:inline-block" />
             <span>Built for modern classrooms</span>

@@ -1,6 +1,7 @@
 import {
   collection,
-  addDoc,
+  setDoc,
+  doc,
   getDocs,
   query,
   serverTimestamp,
@@ -11,6 +12,8 @@ import {
 import { db } from "@/lib/firebaseConfig";
 
 import { recalculateAttendanceRate } from "./statsService";
+import { saveToOutbox } from "@/lib/offlineStore";
+import { registerBackgroundSync } from "@/lib/syncService";
 
 function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -54,10 +57,10 @@ return !snapshot.empty;
  * @throws {Error} If userId or db is unavailable.
  * @example
  * const result = await recordAttendance({
- *   userId: 'user_abc123',
- *   studentName: 'Alice Smith',
- *   email: 'alice@example.com',
- *   confidenceScore: 0.97,
+ * userId: 'user_abc123',
+ * studentName: 'Alice Smith',
+ * email: 'alice@example.com',
+ * confidenceScore: 0.97,
  * });
  * // { alreadyRecorded: false }
  */
@@ -75,12 +78,31 @@ export async function recordAttendance({
     return { alreadyRecorded: true };
   }
 
-  await addDoc(collection(db, "attendance_records"), {
+  const todayKey = getTodayKey();
+
+  // INTERCEPT OFFLINE SUBMISSIONS
+  if (typeof window !== "undefined" && !navigator.onLine) {
+    console.warn("Device is offline. Queuing attendance locally.");
+    await saveToOutbox({
+      userId,
+      studentName,
+      email,
+      confidenceScore: confidenceScore ?? 0,
+      date: todayKey,
+    });
+    
+    // Attempt to register Background Sync for later flush
+    await registerBackgroundSync();
+
+    return { alreadyRecorded: false, newRate: null, queuedOffline: true };
+  }
+
+  await setDoc(doc(db, "attendance_records", `${userId}_${todayKey}`), {
     userId,
     studentName,
     email,
     timestamp: serverTimestamp(),
-    date: getTodayKey(),
+    date: todayKey,
     status: "present",
     confidenceScore: confidenceScore ?? 0,
   });

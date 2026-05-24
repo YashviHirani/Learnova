@@ -72,42 +72,56 @@ export default function Contact() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) {
-      return;
-    }
-    setIsSubmitting(true);
-    setSubmitStatus(null);
+  e.preventDefault();
 
-    try {
-      await emailjs.send(
-        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
-        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
-        { ...formData },
-        process.env.NEXT_PUBLIC_EMAILJS_USER_ID
-      );
+  if (!validateForm()) {
+    setSubmitStatus({
+      type: "error",
+      message: "Please fix the highlighted fields before submitting.",
+    });
+    return;
+  }
 
-      setSubmitStatus({
-        type: "success",
-        message: "Thank you! Your message has been sent successfully.",
-      });
-      setFormData({ name: "", email: "", company: "", message: "" });
-    } catch (error) {
-      setSubmitStatus({
-        type: "error",
-        message: "Sorry, something went wrong. Please try again later.",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  setIsSubmitting(true);
+  setSubmitStatus(null);
+
+  try {
+    await emailjs.send(
+      process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
+      process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
+      { ...formData },
+      process.env.NEXT_PUBLIC_EMAILJS_USER_ID
+    );
+
+    setSubmitStatus({
+      type: "success",
+      message: "Thank you! Your message has been sent successfully.",
+    });
+
+    setFormData({
+      name: "",
+      email: "",
+      company: "",
+      message: "",
+    });
+
+    setErrors({});
+  } catch (error) {
+    setSubmitStatus({
+      type: "error",
+      message: "Sorry, something went wrong. Please try again later.",
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const contactInfo = [
     {
       icon: Mail,
       label: "Email",
-      value: "shawprem217@gmail.com",
-      href: "mailto:hello@learnova.com",
+      value: CONTACT_INFO.email,
+      href: `mailto:${CONTACT_INFO.email}`,
       gradient: "from-blue-500 to-cyan-500",
     },
     {
@@ -182,9 +196,9 @@ export default function Contact() {
         {/* Hero Section */}
         <section className="pt-32 pb-16 px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-accent/20 to-purple-500/20 rounded-full border border-accent/30 backdrop-blur-sm mb-6">
-              <MessageCircle className="w-5 h-5 text-accent-foreground mr-2" />
-              <span className="text-accent-foreground font-medium">Get in Touch</span>
+            <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-accent/10 to-purple-500/10 dark:from-accent/20 dark:to-purple-500/20 rounded-full border border-accent/20 dark:border-accent/30 backdrop-blur-sm mb-6">
+              <MessageCircle className="w-5 h-5 text-accent dark:text-accent-foreground mr-2" />
+              <span className="text-accent dark:text-accent-foreground font-medium">Get in Touch</span>
             </div>
 
             <h1 className="text-5xl md:text-6xl font-bold text-foreground dark:text-white mb-6">
@@ -311,7 +325,7 @@ export default function Contact() {
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="group w-full bg-gradient-to-r from-accent to-purple-500 text-foreground py-4 px-6 rounded-xl font-semibold hover:shadow-xl hover:shadow-accent/25 transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                      className="group w-full bg-gradient-to-r from-accent to-purple-500 text-white py-4 px-6 rounded-xl font-semibold hover:shadow-xl hover:shadow-accent/25 transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                     >
                       {isSubmitting ? (
                         <>
