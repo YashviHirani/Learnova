@@ -274,7 +274,7 @@ export default function Contact() {
             <div className="grid lg:grid-cols-2 gap-16">
               {/* Contact Form */}
               <div className="relative">
-                <div className="bg-card backdrop-blur-xl rounded-3xl p-8 border border-border hover:border-accent/30 transition-all duration-500">
+                <div className="bg-card backdrop-blur-xl rounded-3xl p-8 border border-border hover:border-accent/30 transition-border duration-500">
                   <div className="mb-8">
                     <h2 className="text-3xl font-bold text-foreground mb-4">
                       Send us a Message
@@ -298,7 +298,7 @@ export default function Contact() {
                           value={formData.name}
                           onChange={handleInputChange}
                           placeholder="Enter your full name"
-                          className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300"
+                          className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-colors duration-300"
                         />
                         {errors.name && (
                           <p className="text-red-400 text-sm mt-1">
@@ -318,7 +318,7 @@ export default function Contact() {
                           value={formData.email}
                           onChange={handleInputChange}
                           placeholder="you@example.com"
-                          className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300"
+                          className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-colors duration-300"
                         />
                         {errors.email && (
                           <p className="text-red-400 text-sm mt-1">
@@ -339,7 +339,7 @@ export default function Contact() {
                         value={formData.company}
                         onChange={handleInputChange}
                         placeholder="Your institution or company name"
-                        className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300"
+                        className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-colors duration-300"
                       />
                     </div>
 
@@ -354,7 +354,7 @@ export default function Contact() {
                         onChange={handleInputChange}
                         rows="5"
                         placeholder="Tell us about your needs and how we can help..."
-                        className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-all duration-300 resize-none"
+                        className="w-full p-4 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 transition-colors duration-300 resize-none"
                       />
                       {errors.message && (
                         <p className="text-red-400 text-sm mt-1">
@@ -383,7 +383,7 @@ export default function Contact() {
                     <button
                       type="submit"
                       disabled={isSubmitting || cooldown}
-                      className="group w-full bg-gradient-to-r from-accent to-purple-500 text-white py-4 px-6 rounded-xl font-semibold hover:shadow-xl hover:shadow-accent/25 transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                      className="group w-full bg-gradient-to-r from-accent to-purple-500 text-white py-4 px-6 rounded-xl font-semibold hover:shadow-xl hover:shadow-accent/25 transition-transform duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                     >
                       {isSubmitting ? (
                         <>
@@ -493,7 +493,7 @@ export default function Contact() {
                       <Link
                         key={index}
                         href={social.href}
-                        className={`w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-muted-foreground ${social.color} transition-all duration-300 hover:scale-110 hover:border-current`}
+                        className={`w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-muted-foreground ${social.color} transition-transform duration-300 hover:scale-110 hover:border-current`}
                       >
                         <social.icon className="w-6 h-6" />
                       </Link>
