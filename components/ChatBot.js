@@ -284,6 +284,16 @@ async function saveConversation(userText, botText) {
 const LearnovaChatbot = () => {
   // Get the Firebase user object so we can fetch a fresh ID token per request
   const { user } = useAuthContext();
+   
+  
+  const getContextWelcomeMessage = useCallback(() => {
+    if (!user) return "Hello! I'm Nova, your AI assistant for Learnova. How can I assist you today?";
+    const nameSegment = user.displayName || user.email?.split('@')[0] || "there";
+    const role = user.role?.toLowerCase() || "";
+    if (role === "teacher" || role === "instructor") return `Hello Creator! Ready to manage your classes or check attendance logs today?`;
+    if (role === "student") return `Hi ${nameSegment}, need help finding your assignments or checking your attendance?`;
+    return `Hello ${nameSegment}! Welcome to Learnova. How can I help you today?`;
+  }, [user]);
 
   const INITIAL_MESSAGE = {
     id: 1,
@@ -295,13 +305,23 @@ const LearnovaChatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [messages, setMessages] = useState([INITIAL_MESSAGE]);
+  const [messages, setMessages] = useState(() => [INITIAL_MESSAGE]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentCategory, setCurrentCategory] = useState("general");
 
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  useEffect(() => {
+    setMessages([
+      {
+        id: Date.now(),
+        text: getContextWelcomeMessage(),
+        isBot: true,
+        timestamp: new Date(),
+      }
+    ]);
+  }, [getContextWelcomeMessage]);
 
   useEffect(() => {
     if (!inputMessage && textareaRef.current) {
@@ -325,7 +345,14 @@ const LearnovaChatbot = () => {
   };
 
   const clearChat = () => {
-    setMessages([INITIAL_MESSAGE]);
+    setMessages([
+      {
+        id: Date.now(),
+        text: getContextWelcomeMessage(),
+        isBot: true,
+        timestamp: new Date(),
+      }
+    ]);
     setCurrentCategory("general");
   };
 
@@ -550,24 +577,20 @@ const LearnovaChatbot = () => {
 
             {/* Loading indicator */}
             {isLoading && (
-              <div className="flex justify-start">
-                <div className={`${t.loading} rounded-2xl px-4 py-3 shadow-sm`}>
-                  <div className="flex items-center space-x-2">
-                    <div className="flex space-x-1">
-                      {[0, 0.1, 0.2].map((delay, i) => (
-                        <div
-                          key={i}
-                          className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"
-                          style={{ animationDelay: `${delay}s` }}
-                        />
-                      ))}
+              <div className="flex justify-start items-end gap-2 animate-fadeIn">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${t.botAvatar}`}>
+                  <Bot size={16} />
+                </div>
+                <div className={`${t.loading} border rounded-2xl px-4 py-3 shadow-sm`}>
+                   <div className="flex items-center space-x-1 px-1 py-1">     
+                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" />
                     </div>
-                    <span className={`text-xs ${t.dot}`}>Nova is thinking…</span>
                   </div>
                 </div>
-              </div>
             )}
-
+            
             <div ref={messagesEndRef} />
           </div>
 
