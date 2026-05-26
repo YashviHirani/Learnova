@@ -14,6 +14,14 @@ jest.mock("@/lib/firebase-admin", () => ({
   getUserProfile: jest.fn(),
 }));
 
+jest.mock("@/lib/gamification-service", () => ({
+  awardXp: jest.fn(),
+}));
+
+jest.mock("@/lib/dateUtils", () => ({
+  getLocalDateKey: jest.fn(() => "2026-05-25"),
+}));
+
 jest.mock("firebase-admin/firestore", () => ({
   getFirestore: jest.fn(),
   FieldValue: {

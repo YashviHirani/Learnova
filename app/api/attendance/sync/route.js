@@ -3,6 +3,7 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { initFirebaseAdmin, getUserProfile } from "@/lib/firebase-admin";
 import { requireAuth } from "@/lib/rbac";
 import { withErrorHandler, parseJSON } from "@/lib/error-handler";
+import { getLocalDateKey } from "@/lib/dateUtils";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -95,20 +96,10 @@ async function handleSync(request) {
       continue;
     }
 
-    // Force date to match the validated queuedAt timestamp, but respect local timezone
-    // to prevent UTC offset from logging attendance on the wrong day.
-    const timeZone = process.env.NEXT_PUBLIC_TIMEZONE || "Asia/Kolkata";
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-    const parts = formatter.formatToParts(new Date(record.queuedAt));
-    const year = parts.find((p) => p.type === "year").value;
-    const month = parts.find((p) => p.type === "month").value;
-    const day = parts.find((p) => p.type === "day").value;
-    const recordDate = `${year}-${month}-${day}`;
+    // Derive the calendar date from the validated queuedAt timestamp using the
+    // shared timezone-aware utility. This guarantees the same date key that the
+    // online record path produces (fix for Issue #1234 timestamp drift).
+    const recordDate = getLocalDateKey(record.queuedAt);
 
     const userDateKey = `${decodedToken.uid}_${recordDate}`;
 

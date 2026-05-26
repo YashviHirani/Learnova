@@ -3,6 +3,7 @@ import { withErrorHandler, authenticateRequest, parseJSON } from "@/lib/error-ha
 import { initFirebaseAdmin, getUserProfile } from "@/lib/firebase-admin";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { awardXp } from "@/lib/gamification-service";
+import { getLocalDateKey } from "@/lib/dateUtils";
 
 export const POST = withErrorHandler(async (request) => {
   // 1. Secure token validation ensures only logged-in users can ping this route
@@ -10,7 +11,7 @@ export const POST = withErrorHandler(async (request) => {
 
   const body = await parseJSON(request, 1024);
   const { userId, studentName, email, confidenceScore, date } = body;
-  const normalizedDate = (date || new Date().toISOString().slice(0, 10)).toString();
+  const normalizedDate = (date || getLocalDateKey()).toString();
 
   // 2. Ensure they are only submitting attendance for their own UID!
   if (decodedToken.uid !== userId) {
