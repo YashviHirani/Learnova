@@ -16,8 +16,9 @@ export const POST = withErrorHandler(async (request) => {
   }
 
   const body = await parseJSON(request, 1024 * 10);
-  const validation = validateGroqBody(body);
 
+  // Validate body using the library validator
+  const validation = validateGroqBody(body);
   const trimmedMessage = validation.trimmedMessage;
 
   const injectionCheck = detectInjection(trimmedMessage);
@@ -37,4 +38,11 @@ export const POST = withErrorHandler(async (request) => {
     }
     throw error;
   }
+  // Sanitize user message
+  const sanitizedMessage = sanitizeMessage(trimmedMessage);
+
+  // Call Groq
+  const content = await callGroq(sanitizedMessage);
+
+  return jsonSuccess({ message: content });
 });

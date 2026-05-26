@@ -93,7 +93,8 @@ async function handleSync(request) {
   const instituteId = userProfile?.instituteId || null;
   
   const successfulIds = [];
-  
+  const rejectedIds = [];
+
   // We use a Set to keep track of processed user-dates to prevent duplicate attendance
   // even within the same batch.
   const processedUserDates = new Set();
@@ -111,7 +112,7 @@ async function handleSync(request) {
     // Validate timestamp: must be within the last 48 hours and not in the future (allowing 5 min clock skew)
     if (record.queuedAt > now + 5 * 60 * 1000 || record.queuedAt < now - MAX_OFFLINE_WINDOW_MS) {
       console.warn(`User ${decodedToken.uid} attempted to sync record with invalid queuedAt timestamp ${record.queuedAt}`);
-      successfulIds.push(record.id); // Acknowledge to clear from client DB and prevent endless retry loop
+      rejectedIds.push(record.id);
       continue;
     }
 
@@ -177,6 +178,10 @@ async function handleSync(request) {
   return NextResponse.json({
     success: true,
     syncedIds: successfulIds,
+    rejectedIds,
+    ...(rejectedIds.length > 0 && {
+      warning: "Some records were not synced because they exceeded the 48-hour offline window. These records have been removed from your local queue.",
+    }),
   });
 }
 
