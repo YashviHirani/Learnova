@@ -117,11 +117,16 @@ const TeacherDashboard = () => {
         (r) => r.status === "late",
       ).length;
 
-      const absentToday = records.filter(
-        (r) => r.status === "absent",
-      ).length;
+      // Query the users collection to get total enrolled students with role === "student"
+      const studentsQuery = query(
+        collection(db, "users"),
+        where("role", "==", "student"),
+      );
+      const studentsSnapshot = await getDocs(studentsQuery);
+      const totalStudents = studentsSnapshot.size;
 
-      const totalStudents = records.length;
+      // Calculate absent students dynamically as the remainder of enrolled students
+      const absentToday = Math.max(0, totalStudents - (presentToday + lateToday));
 
       const averageAttendance =
         totalStudents > 0
