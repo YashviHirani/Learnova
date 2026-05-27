@@ -1007,4 +1007,3 @@ export default function UniversalProfile() {
     </div>
   );
 };
-}
