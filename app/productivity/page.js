@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Navbar } from "@/components/Navbar";
 import DarkVeil from "@/components/ui-block/DarkVeil";
+import TimerSkeleton from "@/components/ui/TimerSkeleton";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "react-hot-toast";
@@ -30,6 +31,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { TimerSection } from "@/components/productivity/TimerSection";
+import { apiFetch } from "@/lib/apiClient";
 import { TaskSection } from "@/components/productivity/TaskSection";
 import { CalendarSection } from "@/components/productivity/CalendarSection";
 import { AgendaListSection } from "@/components/productivity/AgendaListSection";
@@ -44,14 +46,29 @@ const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const TASKS_KEY = "learnova_productivity_tasks";
 const AGENDA_KEY = "learnova_productivity_agenda";
 const TIME_BLOCKS = [
-  { label: "Focus", color: "bg-cyan-400" },
-  { label: "Meetings", color: "bg-purple-400" },
-  { label: "Grading", color: "bg-emerald-400" },
+  { label: "Focus", color: "bg-cyan-700" },
+  { label: "Meetings", color: "bg-purple-700" },
+  { label: "Grading", color: "bg-emerald-700" },
 ];
 const PRIORITIES = [
-  { value: "low", label: "Low", color: "border-emerald-400/40 text-emerald-200" },
-  { value: "medium", label: "Medium", color: "border-amber-400/40 text-amber-200" },
-  { value: "high", label: "High", color: "border-rose-400/40 text-rose-200" },
+  {
+    value: "low",
+    label: "Low",
+    color: "border-emerald-300 text-emerald-700 bg-emerald-50",
+    active: "bg-emerald-600 text-white border-emerald-700 shadow-md",
+  },
+  {
+    value: "medium",
+    label: "Medium",
+    color: "border-amber-300 text-amber-700 bg-amber-50",
+    active: "bg-amber-500 text-white border-amber-600 shadow-md",
+  },
+  {
+    value: "high",
+    label: "High",
+    color: "border-rose-300 text-rose-700 bg-rose-50",
+    active: "bg-rose-600 text-white border-rose-700 shadow-md",
+  },
 ];
 const SOUNDSCAPES = [
   { value: "rain", label: "Rain", icon: Volume2 },
@@ -93,6 +110,140 @@ function parseTimeToMinutes(timeLabel) {
   return hours * 60 + minutes;
 }
 
+const AcademicEligibilityCard = () => {
+  const defaultCgpa = 7.2;
+  const requiredCgpa = 6.0;
+  const defaultAttendance = 82;
+
+  const [enteredCgpa, setEnteredCgpa] = useState("");
+  const [cgpa, setCgpa] = useState(defaultCgpa);
+  const [attendance] = useState(defaultAttendance);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleCheck = () => {
+    setErrorMsg("");
+    if (enteredCgpa === "") {
+      setCgpa(defaultCgpa);
+      return;
+    }
+
+    const value = parseFloat(enteredCgpa);
+    if (Number.isNaN(value) || value < 0 || value > 10) {
+      setErrorMsg("Enter a valid CGPA between 0 and 10.");
+      return;
+    }
+
+    setCgpa(value);
+  };
+
+  const isEligible = cgpa >= requiredCgpa && attendance >= 75;
+
+  const maxCgpa = 10.0;
+  const cgpaPercent = Math.min(100, Math.max(0, Math.round((cgpa / maxCgpa) * 100)));
+  const attendancePercent = Math.min(100, Math.round(attendance));
+
+  return (
+    <motion.div
+      className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8 backdrop-blur-xl w-full"
+      initial={{ opacity: 0, y: 12 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.3 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
+      whileHover={{ y: -4 }}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            🎓 Academic Eligibility
+          </h3>
+          <p className="text-xs text-slate-400 mt-1">Snapshot of placement eligibility</p>
+        </div>
+
+        <div className="ml-auto">
+          <span
+            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border ${
+              isEligible
+                ? "bg-green-500/10 text-green-200 border-green-500/20"
+                : "bg-amber-500/10 text-amber-200 border-amber-500/20"
+            }`}
+          >
+            {isEligible ? "Placement Ready" : "Needs Improvement"}
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-xs text-slate-400">Current CGPA</p>
+          <div className="text-xl font-semibold">{cgpa}</div>
+        </div>
+        <div>
+          <p className="text-xs text-slate-400">Required CGPA</p>
+          <div className="text-xl font-semibold">{requiredCgpa}</div>
+        </div>
+
+        <div className="col-span-2 mt-2">
+          <p className="text-xs text-slate-400 mb-1">CGPA Progress</p>
+          <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+            <div
+              className="h-full bg-linear-to-r from-cyan-400 to-purple-400 transition-all"
+              style={{ width: `${cgpaPercent}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="col-span-2 mt-3">
+          <p className="text-xs text-slate-400 mb-1">Attendance</p>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full bg-linear-to-r from-emerald-400 to-cyan-400 transition-all"
+                style={{ width: `${attendancePercent}%` }}
+              />
+            </div>
+            <div className="text-sm font-medium">{attendance}%</div>
+          </div>
+        </div>
+
+        <div className="col-span-2 mt-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              max="10"
+              placeholder="Enter your CGPA (e.g. 7.2)"
+              value={enteredCgpa}
+              onChange={(e) => setEnteredCgpa(e.target.value)}
+              className="w-44 rounded-lg bg-transparent border border-white/10 px-3 py-2 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+            />
+            <button
+              onClick={handleCheck}
+              className="px-4 py-2 rounded-xl bg-cyan-500/80 text-slate-900 text-sm font-semibold"
+            >
+              Check eligibility
+            </button>
+            <div className="text-sm text-rose-300">{errorMsg}</div>
+          </div>
+        </div>
+
+        <div className="col-span-2 mt-4 text-center">
+          <div
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
+              isEligible
+                ? "bg-green-500/10 text-green-200 border border-green-500/20"
+                : "bg-rose-500/10 text-rose-200 border border-rose-500/20"
+            }`}
+          >
+            {isEligible
+              ? "✅ Eligible for Campus Placements"
+              : "❌ Not Eligible — Improve CGPA or Attendance"}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 export default function ProductivityPage() {
   const { user } = useAuth();
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -108,6 +259,7 @@ export default function ProductivityPage() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [calendarFilter, setCalendarFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
   const [taskInput, setTaskInput] = useState("");
   const [taskPriority, setTaskPriority] = useState("medium");
   const [tasks, setTasks] = useState([]);
@@ -151,13 +303,12 @@ export default function ProductivityPage() {
 
       try {
         const token = await user.getIdToken();
-        await fetch("/api/productivity", {
+        await apiFetch("/api/productivity", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ tasks: currentTasks, agendaItems: currentAgenda }),
+          body: { tasks: currentTasks, agendaItems: currentAgenda },
         });
       } catch (_) {
         // Offline or API error — localStorage already has the data
@@ -196,18 +347,13 @@ export default function ProductivityPage() {
 
       try {
         const token = await user.getIdToken();
-        const res = await fetch("/api/productivity", {
+        const data = await apiFetch("/api/productivity", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          if (data.tasks?.length > 0) setTasks(data.tasks);
-          if (data.agendaItems && Object.keys(data.agendaItems).length > 0) {
-            setAgendaItems(data.agendaItems);
-          }
-        } else {
-          throw new Error("API returned non-ok");
+        if (data.tasks?.length > 0) setTasks(data.tasks);
+        if (data.agendaItems && Object.keys(data.agendaItems).length > 0) {
+          setAgendaItems(data.agendaItems);
         }
       } catch (_) {
         try {
@@ -222,9 +368,14 @@ export default function ProductivityPage() {
         setDataLoaded(true);
       }
     }
+    
+    // Set loading to false after component mounts
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 300);
 
-    loadData();
-  }, [user]);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!dataLoaded) return;
@@ -266,24 +417,20 @@ export default function ProductivityPage() {
       if (!user) return;
       try {
         const token = await user.getIdToken();
-        const res = await fetch("/api/productivity/session", {
+        const data = await apiFetch("/api/productivity/session", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
+          body: {
             duration,
             completedAt: new Date().toISOString(),
             type,
-          }),
+          },
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          if (data.xpAwarded > 0) {
-            toast.success(`+${data.xpAwarded} XP earned!`);
-          }
+        if (data.xpAwarded > 0) {
+          toast.success(`+${data.xpAwarded} XP earned!`);
         }
       } catch (_) {
         // Offline — session not recorded, but timer continues
@@ -719,6 +866,12 @@ export default function ProductivityPage() {
       className={`min-h-screen bg-gradient-to-br ${ambientGradient} ${isDark ? "text-white" : "text-slate-900"
       } relative overflow-hidden transition-all duration-500`}
     >
+      <Navbar />
+      
+      {loading ? (
+        <TimerSkeleton />
+      ) : (
+        <>
       <div className="absolute inset-0 pointer-events-none z-0" aria-hidden="true">
         {isDark && <DarkVeil hueShift={ambientStyles.veilHue} />}
       </div>
@@ -875,6 +1028,9 @@ export default function ProductivityPage() {
                   )}
                 </div>
               </motion.div>
+              <div className="mt-6">
+                <AcademicEligibilityCard />
+              </div>
             </div>
 
             <div className="space-y-8">
@@ -1162,6 +1318,8 @@ export default function ProductivityPage() {
           </button>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }
