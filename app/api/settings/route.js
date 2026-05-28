@@ -56,6 +56,13 @@ const settingsSchema = z
           .strict(),
       ])
       .optional(),
+    institute: z
+      .object({
+        lowAttendanceThreshold: z.number().min(0).max(100).optional(),
+        enableAttendanceAutomation: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
     privacy: z
       .object({
         profileVisibility: z.string().optional(),

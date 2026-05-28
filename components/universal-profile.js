@@ -297,25 +297,10 @@ export default function UniversalProfile() {
       );
       e.target.value = ""; // Clear the file input registry cleanly
       return;
+    }
+
     if (!file) return;
-
    
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-
-  if (!allowedTypes.includes(file.type)) {
-    toast.error("Invalid file type. Only JPG, PNG, WEBP are allowed.");
-    e.target.value = "";
-    return;
-  }
-
-  const MAX_SIZE = 2 * 1024 * 1024;
-
-  if (file.size > MAX_SIZE) {
-    toast.error("File size exceeds 2MB. Please select a smaller file.");
-    e.target.value = "";
-    return;
-  }
-
   const loadingToast = toast.loading("Uploading profile picture...");
   const formData = new FormData();
   formData.append("file", file);
