@@ -34,6 +34,10 @@ import AllProviders from "./providers/AllProviders";
 // ─── SEO metadata & structured data ─────────────────────────────────────────
 export { metadata } from "@/lib/seo/siteMetadata";
 import { siteStructuredData } from "@/lib/seo/siteStructuredData";
+import NextTopLoader from "nextjs-toploader";
+import CommandPalette from "../components/CommandPalette";
+import RouteAnnouncer from "@/components/RouteAnnouncer";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 // ─── Environment validation (server-side only, runs once at startup) ─────────
 // Kept outside the component so it runs at module load time, not per-render.
@@ -112,8 +116,10 @@ export default function RootLayout({ children }) {
 
         {/* ── All context providers (Theme, Auth, Firestore, Notifications) ── */}
         <AllProviders>
-
-          {/* ── Page scroll progress bar (top of viewport) ── */}
+          {/* Note: Ensure these providers (ThemeProvider, AuthProvider, etc.) 
+              are actually imported and exported correctly in AllProviders 
+              or placed here individually if AllProviders doesn't cover them. */}
+          
           <ScrollProgress />
 
           {/* ── Route-change loading bar ── */}
@@ -128,7 +134,7 @@ export default function RootLayout({ children }) {
             speed={200}
             shadow="0 0 10px #4f46e5,0 0 5px #4f46e5"
           />
-
+          
           <Suspense fallback={null}>
 
             {/* ── Main page content with error boundary + page transitions ── */}
@@ -140,8 +146,6 @@ export default function RootLayout({ children }) {
 
             {/* ── Scroll restoration on route change ── */}
             <ScrollToTop />
-
-            {/* ── Global footer (rendered on all pages) ── */}
             <Footer />
 
             {/* ── Client-only layout: modals, chatbot, PWA install, streak sync ── */}
@@ -152,17 +156,35 @@ export default function RootLayout({ children }) {
 
             {/* ── Screen-reader route announcer for accessibility ── */}
             <RouteAnnouncer />
+            <OfflineIndicator />
 
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: { fontWeight: 600 },
-            }}
-          />
-
-          <OfflineIndicator />
-          <CommandPaletteWrapper />
+            {/* Single Toaster configuration */}
+            <Toaster
+              position="bottom-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: "#0f172a",
+                  color: "#f8fafc",
+                  border: "1px solid rgba(99, 102, 241, 0.15)",
+                  fontWeight: 600,
+                },
+                success: {
+                  iconTheme: {
+                    primary: "#10b981",
+                    secondary: "#0f172a",
+                  },
+                },
+                error: {
+                  iconTheme: {
+                    primary: "#ef4444",
+                    secondary: "#0f172a",
+                  },
+                },
+              }}
+            />
+            
+            <CommandPalette />
           </Suspense>
           </AllProviders>
                       
