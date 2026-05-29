@@ -70,7 +70,7 @@ export default function MoodTracker() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const savedMood = window.localStorage.getItem("learnova-wellness-mood");
+    const savedMood = safeLocalStorageGet("learnova-wellness-mood", "happy");
     const savedHistory = safeLocalStorageGet("learnova-wellness-mood-history", []);
 
     setActiveMood(normalizeMoodKey(savedMood, moodKeys));
