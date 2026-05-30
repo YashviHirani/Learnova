@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import {
@@ -27,18 +28,139 @@ import {
   X,
   AlertTriangle,
   Sparkles,
+  RefreshCw,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Navbar } from "./Navbar";
+import { useTheme } from "next-themes";
+import { motion } from "framer-motion";
+import i18n from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
+
+const SettingCard = ({ children, title, description }) => (
+  <div className="bg-black/20 backdrop-blur-2xl rounded-2xl border border-white/10 p-6 hover:bg-black/30 transition-all duration-300">
+    <div className="mb-4">
+      <h3 className="text-lg font-semibold text-white">{title}</h3>
+      {description && (
+        <p className="text-white/60 text-sm mt-1">{description}</p>
+      )}
+    </div>
+    {children}
+  </div>
+);
+
+const ToggleSwitch = ({ enabled, onChange, label, description }) => (
+  <div className="flex items-center justify-between py-3">
+    <div className="flex-1">
+      <p className="text-white font-medium">{label}</p>
+      {description && <p className="text-white/60 text-sm">{description}</p>}
+    </div>
+    <button
+      onClick={() => onChange(!enabled)}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${enabled
+          ? "bg-gradient-to-r from-blue-500 to-purple-600"
+          : "bg-white/20"
+        }`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${enabled ? "translate-x-6" : "translate-x-1"
+          }`}
+      />
+    </button>
+  </div>
+);
 
 export default function UniversalSettings() {
   const { user } = useAuth();
+  const { setTheme } = useTheme();
+  const { t } = useTranslation();
+  const fileInputRef = useRef(null);
   const [activeSection, setActiveSection] = useState("profile");
   const [showPassword, setShowPassword] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [pushPermission, setPushPermission] = useState("default");
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
 
-  const getUserInitials = (name) => {
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (!("Notification" in window)) {
+        setPushPermission("unsupported");
+      } else {
+        setPushPermission(Notification.permission);
+      }
+    }
+  }, []);
+
+  const handleTogglePush = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+
+    if (pushPermission === "granted") {
+      updateSetting("notifications", "pushNotifications", false);
+      toast.success("Push notifications muted in setting profile!");
+      setPushPermission("default");
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      setPushPermission(permission);
+      if (permission === "granted") {
+        updateSetting("notifications", "pushNotifications", true);
+        toast.success("Timetable push notifications activated! Reminders will trigger 10m before class.");
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.register("/sw.js")
+            .then((reg) => { })
+            .catch((err) => console.error("SW Registration failed:", err));
+        }
+      } else if (permission === "denied") {
+        toast.error("Notifications blocked! Allow permission in site settings.");
+      }
+    } catch (err) {
+      console.error("Error setting notification permission:", err);
+    }
+  };
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size must be less than 5MB");
+      return;
+    }
+
+    // Store the file and create preview
+    setAvatarFile(file);
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const imageData = event.target?.result;
+      if (imageData) {
+        setAvatarPreview(imageData);
+        setHasChanges(true);
+        toast.success("Avatar preview updated! Click 'Save Changes' to upload.");
+      }
+    };
+    reader.readAsDataURL(file);
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const getUserInitials = useCallback((name) => {
     if (!name) return "U";
     return name
       .split(" ")
@@ -46,22 +168,22 @@ export default function UniversalSettings() {
       .join("")
       .toUpperCase()
       .slice(0, 2);
-  };
+  }, []);
 
-  const getUserPhoto = () => {
+  const getUserPhoto = useCallback(() => {
     return user?.photoURL || user?.avatar || null;
-  };
+  }, [user]);
 
-  const getUserDisplayName = () => {
+  const getUserDisplayName = useCallback(() => {
     if (user?.displayName) return user.displayName;
     if (user?.name) return user.name;
     if (user?.email) return user.email.split("@")[0];
     return "User";
-  };
+  }, [user]);
 
-  const getUserEmail = () => {
+  const getUserEmail = useCallback(() => {
     return user?.email || "";
-  };
+  }, [user]);
 
   const getRoleSpecificSettings = () => {
     const role = user?.role || "student";
@@ -205,25 +327,39 @@ export default function UniversalSettings() {
     learning: roleSpecificSettings.learning,
     appearance: {
       theme: "dark",
-      language: "English",
+      language: "en",
       timezone: "UTC-8",
     },
   });
 
   useEffect(() => {
-    if (user) {
-      setSettings((prev) => ({
-        ...prev,
-        profile: {
-          ...prev.profile,
-          name: getUserDisplayName(),
-          email: getUserEmail(),
-          phone: user.phone || prev.profile.phone,
-          bio: user.bio || prev.profile.bio,
-          avatar: getUserPhoto() || prev.profile.avatar,
-        },
-      }));
-    }
+    const loadSettings = async () => {
+      try {
+        setIsInitialLoading(true);
+        setError(null);
+
+        if (user) {
+          setSettings((prev) => ({
+            ...prev,
+            profile: {
+              ...prev.profile,
+              name: getUserDisplayName(),
+              email: getUserEmail(),
+              phone: user.phone || prev.profile.phone,
+              bio: user.bio || prev.profile.bio,
+              avatar: getUserPhoto() || prev.profile.avatar,
+            },
+          }));
+        }
+      } catch (err) {
+        setError("Failed to load settings. Please try again.");
+        console.error("Error loading settings:", err);
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+
+    loadSettings();
   }, [user]);
 
   const updateSetting = (section, key, value) => {
@@ -239,11 +375,59 @@ export default function UniversalSettings() {
 
   const saveSettings = async () => {
     setIsLoading(true);
-   try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    setError(null);
+    try {
+      // Upload avatar separately if one was selected
+      let avatarUrl = settings.profile.avatar;
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append("file", avatarFile);
+        
+        const uploadResponse = await fetch("/api/upload/avatar", {
+          method: "POST",
+          body: formData,
+          credentials: "include", // Include cookies for authentication
+        });
+        
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json().catch(() => ({}));
+          const errorMsg = errorData.error || errorData.message || "Failed to upload avatar";
+          throw new Error(`Avatar upload failed: ${errorMsg}`);
+        }
+        
+        const uploadData = await uploadResponse.json();
+        if (!uploadData.url) {
+          throw new Error("No URL returned from avatar upload");
+        }
+        avatarUrl = uploadData.url;
+        setAvatarFile(null);
+        setAvatarPreview(null);
+      }
+
+      // Save other settings
+      const response = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...settings, 
+          profile: {
+            ...settings.profile,
+            avatar: avatarUrl
+          },
+          userId: user?.uid 
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Settings save failed: ${errorData.error || errorData.message || "Unknown error"}`);
+      }
       setHasChanges(false);
+      toast.success("Settings updated successfully!");
     } catch (error) {
-      console.error("Failed to save settings:", error);
+      const errorMsg = error?.message || "Failed to save settings";
+      setError(errorMsg);
+      toast.error(errorMsg);
+      console.error("Error saving settings:", error);
     } finally {
       setIsLoading(false);
     }
@@ -271,47 +455,70 @@ export default function UniversalSettings() {
       learning: roleSpecificSettings.learning,
       appearance: {
         theme: "dark",
-        language: "English",
+        language: "en",
         timezone: "UTC-8",
       },
     });
     setHasChanges(false);
   };
 
-  const SettingCard = ({ children, title, description }) => (
-    <div className="bg-black/20 backdrop-blur-2xl rounded-2xl border border-white/10 p-6 hover:bg-black/30 transition-all duration-300">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-white">{title}</h3>
-        {description && (
-          <p className="text-white/60 text-sm mt-1">{description}</p>
-        )}
-      </div>
-      {children}
-    </div>
-  );
+  const handleResetToDefaults = () => {
+    try {
+      // 1. Clear settings-related keys in localStorage safely
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.removeItem("theme");
+        window.localStorage.removeItem("settings");
+        window.localStorage.removeItem("learnova_settings");
+      }
 
-  const ToggleSwitch = ({ enabled, onChange, label, description }) => (
-    <div className="flex items-center justify-between py-3">
-      <div className="flex-1">
-        <p className="text-white font-medium">{label}</p>
-        {description && <p className="text-white/60 text-sm">{description}</p>}
-      </div>
-      <button
-        onClick={() => onChange(!enabled)}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
-          enabled
-            ? "bg-gradient-to-r from-blue-500 to-purple-600"
-            : "bg-white/20"
-        }`}
-      >
-        <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-            enabled ? "translate-x-6" : "translate-x-1"
-          }`}
-        />
-      </button>
-    </div>
-  );
+      // 2. Revert theme in next-themes provider to default 'dark'
+      setTheme("dark");
+
+      // 3. Reset settings state to initial default values
+      setSettings({
+        profile: {
+          name: getUserDisplayName(),
+          email: getUserEmail(),
+          phone: user?.phone || "",
+          bio:
+            user?.bio ||
+            "Passionate learner exploring new technologies and skills.",
+          avatar: getUserPhoto() || "/user-avatar.jpg",
+        },
+        notifications: roleSpecificSettings.notifications,
+        privacy: {
+          profileVisibility: "public",
+          showProgress: true,
+          showAchievements: true,
+          allowMessages: true,
+          dataCollection: true,
+        },
+        learning: roleSpecificSettings.learning,
+        appearance: {
+          theme: "dark",
+          language: "en",
+          timezone: "UTC-8",
+        },
+      });
+
+      // 4. Mark change indicators as false
+      setHasChanges(false);
+
+      // 5. Show beautiful success notification
+      toast.success("Settings restored to system defaults!", {
+        icon: "🔄",
+        style: {
+          borderRadius: "16px",
+          background: "#1e293b",
+          color: "#fff",
+          border: "1px solid rgba(255,255,255,0.1)",
+        },
+      });
+    } catch (err) {
+      console.error("Failed to reset settings to defaults:", err);
+      toast.error("Failed to reset settings. Please try again.");
+    }
+  };
 
   const sections = [
     { id: "profile", label: "Profile", icon: User },
@@ -322,6 +529,38 @@ export default function UniversalSettings() {
     { id: "data", label: "Data & Storage", icon: Database },
     { id: "help", label: "Help & Support", icon: HelpCircle },
   ];
+
+  if (isInitialLoading) {
+    return (
+      <div className="min-h-screen relative rounded-2xl bg-gradient-to-br from-slate-950 via-gray-900 to-slate-950 flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen relative rounded-2xl bg-gradient-to-br from-slate-950 via-gray-900 to-slate-950 flex items-center justify-center">
+        <div className="text-center text-white px-4">
+          <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-10 h-10 text-red-400" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Error Loading Settings</h2>
+          <p className="text-gray-400 mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl transition-all duration-300 hover:scale-105"
+          >
+            <RefreshCw className="w-4 h-4 mr-2 inline" />
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen relative rounded-2xl bg-gradient-to-br from-slate-950 via-gray-900 to-slate-950">
@@ -335,7 +574,7 @@ export default function UniversalSettings() {
           <div>
             <h1 className="text-3xl font-bold text-white mb-2 flex items-center">
               <Settings className="h-8 w-8 mr-3 text-blue-400" />
-              Settings
+              {t("settings")}
               <Sparkles className="ml-3 h-6 w-6 text-yellow-400 animate-pulse" />
             </h1>
             <p className="text-white/60">
@@ -375,11 +614,10 @@ export default function UniversalSettings() {
                   <button
                     key={section.id}
                     onClick={() => setActiveSection(section.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
-                      activeSection === section.id
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${activeSection === section.id
                         ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
                         : "text-white/70 hover:text-white hover:bg-white/10"
-                    }`}
+                      }`}
                   >
                     <section.icon className="h-5 w-5" />
                     <span>{section.label}</span>
@@ -400,10 +638,18 @@ export default function UniversalSettings() {
                   <div className="space-y-4">
                     <div className="flex items-center space-x-6">
                       <div className="relative">
-                        {getUserPhoto() ? (
+                        {avatarPreview ? (
+                          <Image
+                            src={avatarPreview}
+                            alt="Avatar preview"
+                            width={200}
+                            height={200}
+                            className="w-20 h-20 rounded-full border-2 border-blue-400 object-cover"
+                          />
+                        ) : getUserPhoto() ? (
                           <Image
                             src={getUserPhoto() || "/placeholder.svg"}
-                            alt="Profile"
+                            alt={`${getUserDisplayName()} profile photo`}
                             width={200}
                             height={200}
                             className="w-20 h-20 rounded-full border-2 border-white/20 object-cover"
@@ -416,23 +662,35 @@ export default function UniversalSettings() {
                           />
                         ) : null}
                         <div
-                          className={`w-20 h-20 rounded-full border-2 border-white/20 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl ${
-                            getUserPhoto() ? "hidden" : "flex"
-                          }`}
+                          className={`w-20 h-20 rounded-full border-2 ${avatarPreview ? "border-blue-400" : "border-white/20"} bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl ${getUserPhoto() || avatarPreview ? "hidden" : "flex"
+                            }`}
                         >
                           {getUserInitials(getUserDisplayName())}
                         </div>
-                        <button className="absolute -bottom-1 -right-1 bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-colors">
+                        <button 
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="absolute -bottom-1 -right-1 bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-colors"
+                        >
                           <User className="h-4 w-4" />
                         </button>
                       </div>
                       <div className="flex-1">
                         <Button
+                          onClick={() => fileInputRef.current?.click()}
                           variant="outline"
                           className="border-white/20 text-white hover:bg-white/10 bg-transparent"
                         >
                           Change Avatar
                         </Button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarChange}
+                          className="hidden"
+                          aria-label="Upload avatar image"
+                        />
                       </div>
                     </div>
 
@@ -545,30 +803,78 @@ export default function UniversalSettings() {
             )}
 
             {activeSection === "notifications" && (
-              <SettingCard
-                title="Notification Preferences"
-                description="Choose how you want to be notified"
-              >
-                <div className="space-y-2">
-                  {Object.entries(settings.notifications).map(
-                    ([key, value]) => (
-                      <ToggleSwitch
-                        key={key}
-                        enabled={value}
-                        onChange={(newValue) =>
-                          updateSetting("notifications", key, newValue)
+              <div className="space-y-6">
+                {/* Timetable Class Reminder Card */}
+                <SettingCard
+                  title="Timetable & Class Reminders"
+                  description="Get dynamic push notifications 10 minutes before your next class starts."
+                >
+                  <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02] backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <span className={`w-2.5 h-2.5 rounded-full ${pushPermission === "granted" ? "bg-green-400 animate-pulse" :
+                            pushPermission === "denied" ? "bg-red-500" : "bg-yellow-400 animate-bounce"
+                          }`} />
+                        <span className="text-sm font-semibold text-white">
+                          Status: {
+                            pushPermission === "granted" ? "Notifications Enabled" :
+                              pushPermission === "denied" ? "Notifications Blocked" :
+                                pushPermission === "unsupported" ? "Browser Unsupported" : "Permission Required"
+                          }
+                        </span>
+                      </div>
+                      <p className="text-white/60 text-xs mt-1">
+                        {pushPermission === "granted"
+                          ? "You are all set! Learnova will proactively notify you 10 minutes before classes."
+                          : pushPermission === "denied"
+                            ? "Please reset browser permissions in your URL bar to enable notifications."
+                            : pushPermission === "unsupported"
+                              ? "Push notifications are not supported in this browser."
+                              : "Enable browser push notifications to receive proactive class alerts."
                         }
-                        label={key
-                          .replace(/([A-Z])/g, " $1")
-                          .replace(/^./, (str) => str.toUpperCase())}
-                        description={`Receive ${key
-                          .replace(/([A-Z])/g, " $1")
-                          .toLowerCase()}`}
-                      />
-                    )
-                  )}
-                </div>
-              </SettingCard>
+                      </p>
+                    </div>
+
+                    {pushPermission !== "unsupported" && (
+                      <button
+                        onClick={handleTogglePush}
+                        disabled={pushPermission === "denied"}
+                        className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all duration-300 ${pushPermission === "granted"
+                            ? "bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 cursor-pointer"
+                            : "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg hover:shadow-purple-500/20 hover:scale-105 active:scale-95 cursor-pointer"
+                          }`}
+                      >
+                        {pushPermission === "granted" ? "Mute Reminders" : "Enable Reminders"}
+                      </button>
+                    )}
+                  </div>
+                </SettingCard>
+
+                <SettingCard
+                  title="Notification Preferences"
+                  description="Choose how you want to be notified"
+                >
+                  <div className="space-y-2">
+                    {Object.entries(settings.notifications).map(
+                      ([key, value]) => (
+                        <ToggleSwitch
+                          key={key}
+                          enabled={value}
+                          onChange={(newValue) =>
+                            updateSetting("notifications", key, newValue)
+                          }
+                          label={key
+                            .replace(/([A-Z])/g, " $1")
+                            .replace(/^./, (str) => str.toUpperCase())}
+                          description={`Receive ${key
+                            .replace(/([A-Z])/g, " $1")
+                            .toLowerCase()}`}
+                        />
+                      ),
+                    )}
+                  </div>
+                </SettingCard>
+              </div>
             )}
 
             {/* ... existing code for other sections ... */}
@@ -617,7 +923,7 @@ export default function UniversalSettings() {
                               updateSetting(
                                 "privacy",
                                 "profileVisibility",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-4 h-4 text-blue-500 bg-white/10 border-white/20 focus:ring-blue-500"
@@ -694,7 +1000,7 @@ export default function UniversalSettings() {
                           updateSetting(
                             "learning",
                             "dailyGoal",
-                            Number.parseFloat(e.target.value)
+                            Number.parseFloat(e.target.value),
                           )
                         }
                         className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:border-blue-400 focus:outline-none"
@@ -713,7 +1019,7 @@ export default function UniversalSettings() {
                           updateSetting(
                             "learning",
                             "weeklyGoal",
-                            Number.parseInt(e.target.value)
+                            Number.parseInt(e.target.value),
                           )
                         }
                         className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:border-blue-400 focus:outline-none"
@@ -737,15 +1043,15 @@ export default function UniversalSettings() {
                           updateSetting(
                             "learning",
                             "difficulty",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                         className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:border-blue-400 focus:outline-none"
                       >
-                        <option value="beginner">Beginner</option>
-                        <option value="intermediate">Intermediate</option>
-                        <option value="advanced">Advanced</option>
-                        <option value="expert">Expert</option>
+                        <option value="beginner" className="bg-slate-950 text-white">Beginner</option>
+                        <option value="intermediate" className="bg-slate-950 text-white">Intermediate</option>
+                        <option value="advanced" className="bg-slate-950 text-white">Advanced</option>
+                        <option value="expert" className="bg-slate-950 text-white">Expert</option>
                       </select>
                     </div>
 
@@ -784,27 +1090,52 @@ export default function UniversalSettings() {
                     </label>
                     <div className="grid grid-cols-3 gap-4">
                       {[
-                        { value: "light", label: "Light", icon: Sun },
-                        { value: "dark", label: "Dark", icon: Moon },
-                        { value: "system", label: "System", icon: Monitor },
-                      ].map((theme) => (
-                        <button
-                          key={theme.value}
-                          onClick={() =>
-                            updateSetting("appearance", "theme", theme.value)
-                          }
-                          className={`flex flex-col items-center space-y-2 p-4 rounded-lg border transition-all duration-200 ${
-                            settings.appearance.theme === theme.value
-                              ? "border-blue-500 bg-blue-500/20"
-                              : "border-white/20 bg-white/5 hover:bg-white/10"
-                          }`}
-                        >
-                          <theme.icon className="h-6 w-6 text-white" />
-                          <span className="text-white text-sm font-medium">
-                            {theme.label}
-                          </span>
-                        </button>
-                      ))}
+                        { value: "light", label: "Light", icon: Sun, color: "text-amber-400 group-hover:text-amber-300" },
+                        { value: "dark", label: "Dark", icon: Moon, color: "text-violet-400 group-hover:text-violet-300" },
+                        { value: "system", label: "System", icon: Monitor, color: "text-blue-400 group-hover:text-blue-300" },
+                      ].map((themeOpt) => {
+                        const isSelected = settings.appearance.theme === themeOpt.value;
+                        return (
+                          <motion.button
+                            key={themeOpt.value}
+                            onClick={() => {
+                              updateSetting("appearance", "theme", themeOpt.value);
+                              setTheme(themeOpt.value);
+                            }}
+                            className={`group flex flex-col items-center space-y-3 p-5 rounded-2xl border transition-all duration-300 cursor-pointer text-center relative overflow-hidden ${isSelected
+                                ? "border-blue-500/80 bg-blue-500/10 text-white shadow-[0_0_20px_rgba(59,130,246,0.25)]"
+                                : "border-white/10 bg-white/5 text-white/70 hover:text-white hover:bg-white/10 hover:border-white/20 hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]"
+                              }`}
+                            whileHover="hover"
+                            whileTap="tap"
+                            animate={isSelected ? "selected" : "unselected"}
+                            variants={{
+                              hover: { scale: 1.04, y: -2 },
+                              tap: { scale: 0.96 }
+                            }}
+                          >
+                            {/* Glow spot */}
+                            {isSelected && (
+                              <span className="absolute -inset-px rounded-2xl bg-gradient-to-tr from-blue-500/10 to-purple-500/10 opacity-100 pointer-events-none" />
+                            )}
+                            <motion.div
+                              variants={{
+                                hover: { scale: 1.15, rotate: themeOpt.value === "light" ? 45 : themeOpt.value === "dark" ? -15 : 0 }
+                              }}
+                              transition={{ type: "spring", stiffness: 200, damping: 12 }}
+                              className={`p-2.5 rounded-xl ${isSelected
+                                  ? "bg-blue-500/20"
+                                  : "bg-white/5 group-hover:bg-white/10"
+                                } transition-colors duration-300`}
+                            >
+                              <themeOpt.icon className={`h-6 w-6 transition-colors duration-300 ${isSelected ? "text-white" : themeOpt.color}`} />
+                            </motion.div>
+                            <span className="text-sm font-semibold tracking-wide block">
+                              {themeOpt.label}
+                            </span>
+                          </motion.button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -815,20 +1146,17 @@ export default function UniversalSettings() {
                       </label>
                       <select
                         value={settings.appearance.language}
-                        onChange={(e) =>
-                          updateSetting(
-                            "appearance",
-                            "language",
-                            e.target.value
-                          )
-                        }
+                        onChange={(e) => {
+                          updateSetting("appearance", "language", e.target.value);
+                          i18n.changeLanguage(e.target.value);
+                        }}
                         className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:border-blue-400 focus:outline-none"
                       >
-                        <option value="English">English</option>
-                        <option value="Spanish">Español</option>
-                        <option value="French">Français</option>
-                        <option value="German">Deutsch</option>
-                        <option value="Chinese">中文</option>
+                        <option value="en" className="bg-slate-950 text-white">English</option>
+                        <option value="es" className="bg-slate-950 text-white">Español</option>
+                        <option value="fr" className="bg-slate-950 text-white">Français</option>
+                        <option value="de" className="bg-slate-950 text-white">Deutsch</option>
+                        <option value="zh" className="bg-slate-950 text-white">中文</option>
                       </select>
                     </div>
                     <div>
@@ -841,20 +1169,20 @@ export default function UniversalSettings() {
                           updateSetting(
                             "appearance",
                             "timezone",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                         className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:border-blue-400 focus:outline-none"
                       >
-                        <option value="UTC-8">Pacific Time (UTC-8)</option>
-                        <option value="UTC-5">Eastern Time (UTC-5)</option>
-                        <option value="UTC+0">
+                        <option value="UTC-8" className="bg-slate-950 text-white">Pacific Time (UTC-8)</option>
+                        <option value="UTC-5" className="bg-slate-950 text-white">Eastern Time (UTC-5)</option>
+                        <option value="UTC+0" className="bg-slate-950 text-white">
                           Greenwich Mean Time (UTC+0)
                         </option>
-                        <option value="UTC+1">
+                        <option value="UTC+1" className="bg-slate-950 text-white">
                           Central European Time (UTC+1)
                         </option>
-                        <option value="UTC+8">
+                        <option value="UTC+8" className="bg-slate-950 text-white">
                           China Standard Time (UTC+8)
                         </option>
                       </select>
@@ -908,6 +1236,30 @@ export default function UniversalSettings() {
                 </SettingCard>
 
                 <SettingCard
+                  title="Preference Reset"
+                  description="Restore all settings, appearance parameters, and notification choices to system defaults"
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                      <div>
+                        <p className="text-white font-medium">Reset Settings</p>
+                        <p className="text-white/60 text-sm">
+                          Revert all configurations back to system default values
+                        </p>
+                      </div>
+                      <Button
+                        onClick={handleResetToDefaults}
+                        variant="outline"
+                        className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10 bg-transparent"
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Reset to Defaults
+                      </Button>
+                    </div>
+                  </div>
+                </SettingCard>
+
+                <SettingCard
                   title="Account Actions"
                   description="Manage your account and data"
                 >
@@ -944,7 +1296,7 @@ export default function UniversalSettings() {
                     </div>
                   </div>
                 </SettingCard>
-              </> 
+              </>
             )}
 
             {activeSection === "help" && (

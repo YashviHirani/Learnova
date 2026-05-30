@@ -1,39 +1,50 @@
 "use client";
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, Suspense } from "react";
 import { analytics } from "@/lib/firebaseConfig";
 import { logEvent } from "firebase/analytics";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-// Components
 import { Navbar } from "@/components/Navbar";
 import RoleSelection from "@/components/RoleSelection";
 import AuthForm from "@/components/AuthForm";
 import HeroSection from "@/components/HeroSection";
 import ForgotPasswordModal from "@/components/ForgotPasswordModal";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import toast from "react-hot-toast";
 
-// Services and Utils
 import {
   loginWithEmail,
   signupWithEmail,
   loginWithGoogle,
   resetPassword,
 } from "@/services/authService";
+
 import { validateForm, redirectBasedOnRole } from "@/utils/authUtils";
 import { USER_ROLES } from "@/constants/userRoles";
 
 export default function AuthPage() {
+  return (
+    <Suspense fallback={null}>
+      <AuthPageContent />
+    </Suspense>
+  );
+}
+
+function AuthPageContent() {
+  const searchParams = useSearchParams();
+  const mode = searchParams.get("mode");
+
   const [showRoleSelection, setShowRoleSelection] = useState(true);
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(mode !== "signup");
   const [selectedRole, setSelectedRole] = useState("");
 
-  // Form state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [instituteName, setInstituteName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
 
-  // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [errors, setErrors] = useState({});
@@ -42,9 +53,11 @@ export default function AuthPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (analytics) {
-      logEvent(analytics, "page_view", { page: "auth" });
-    }
+    setIsLogin(mode !== "signup");
+  }, [mode]);
+
+  useEffect(() => {
+    if (analytics) logEvent(analytics, "page_view", { page: "auth" });
   }, []);
 
   const handleRoleSelect = (role) => {
@@ -60,35 +73,24 @@ export default function AuthPage() {
     setPassword("");
     setFullName("");
     setInstituteName("");
+    setInviteCode("");
   };
 
   const handleToggleLogin = () => {
     setIsLogin(!isLogin);
     setErrors({});
     setPassword("");
-    // Don't reset role when toggling - keep the selected role
     if (!isLogin) {
-      // Only clear form fields when switching to login mode
       setFullName("");
       setInstituteName("");
+      setInviteCode("");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const formData = {
-      selectedRole,
-      email,
-      password,
-      fullName,
-      instituteName,
-    };
-
-    const { isValid, errors: validationErrors } = validateForm(
-      formData,
-      isLogin
-    );
+    const formData = { selectedRole, email, password, fullName, instituteName, inviteCode };
+    const { isValid, errors: validationErrors } = validateForm(formData, isLogin);
 
     if (!isValid) {
       setErrors(validationErrors);
@@ -100,30 +102,33 @@ export default function AuthPage() {
 
     try {
       let result;
-
       if (isLogin) {
         result = await loginWithEmail(email, password, selectedRole);
       } else {
         result = await signupWithEmail(email, password, selectedRole, {
           fullName,
           instituteName,
+          inviteCode,
         });
       }
 
-      if (result.success) {
-        if (result.needsVerification) {
-          router.push("/verify");
-        } else if (result.needsProfile) {
-          router.push("/profile");
-        } else {
-          redirectBasedOnRole(result.userData.role, router);
-        }
+      if (result.needsVerification) {
+        toast.success("Verification email sent! Please check your inbox.");
+        setShowRoleSelection(true);
+        router.push("/verify");
+      } else if (result.needsProfile) {
+        toast.success("Account created successfully!");
+        setShowRoleSelection(true);
+        router.push("/profile");
+      } else if (result.success) {
+        toast.success(isLogin ? "Successfully logged in!" : "Account created successfully!");
+        setShowRoleSelection(true);
+        redirectBasedOnRole(result.userData.role, router);
       } else {
-        setErrors({ submit: result.error });
+        setErrors({ submit: result.error || "Something went wrong. Please try again." });
       }
-    } catch (err) {
-      console.error("Auth error:", err);
-      setErrors({ submit: "An unexpected error occurred. Please try again." });
+    } catch {
+      setErrors({ submit: "Authentication failed. Please verify your credentials and try again." });
     } finally {
       setIsLoading(false);
     }
@@ -134,13 +139,7 @@ export default function AuthPage() {
       setErrors({ role: "Please select your role first" });
       return;
     }
-
-    // For signup, validate required fields for institute role
-    if (
-      !isLogin &&
-      selectedRole === USER_ROLES.INSTITUTE &&
-      !instituteName.trim()
-    ) {
+    if (!isLogin && selectedRole === USER_ROLES.INSTITUTE && !instituteName.trim()) {
       setErrors({ instituteName: "Institute name is required" });
       return;
     }
@@ -149,19 +148,15 @@ export default function AuthPage() {
     setErrors({});
 
     try {
-      const result = await loginWithGoogle(selectedRole, isLogin, {
-        fullName,
-        instituteName,
-      });
-
+      const result = await loginWithGoogle(selectedRole, isLogin, { fullName, instituteName });
       if (result.success) {
+        toast.success("Successfully logged in with Google!");
         redirectBasedOnRole(result.userData.role, router);
       } else {
-        setErrors({ submit: result.error });
+        setErrors({ submit: result.error || "Google sign-in could not be completed. Please try again." });
       }
-    } catch (err) {
-      console.error("Google auth error:", err);
-      setErrors({ submit: "An unexpected error occurred. Please try again." });
+    } catch {
+      setErrors({ submit: "An unexpected error occurred during Google authentication." });
     } finally {
       setIsLoading(false);
     }
@@ -172,7 +167,6 @@ export default function AuthPage() {
       setErrors({ forgotEmail: "Please enter your email address" });
       return;
     }
-
     if (!/\S+@\S+\.\S+/.test(emailToReset)) {
       setErrors({ forgotEmail: "Please enter a valid email address" });
       return;
@@ -183,19 +177,15 @@ export default function AuthPage() {
 
     try {
       const result = await resetPassword(emailToReset);
-
       if (result.success) {
-        alert("Password reset email sent! Check your inbox and spam folder.");
+        toast.success("Password reset email sent! Check your inbox and spam folder.");
         setShowForgotPassword(false);
         setForgotPasswordEmail("");
       } else {
         setErrors({ forgotEmail: result.error });
       }
-    } catch (err) {
-      console.error("Password reset error:", err);
-      setErrors({
-        forgotEmail: "Failed to send reset email. Please try again.",
-      });
+    } catch {
+      setErrors({ forgotEmail: "Password reset failed. Please verify your email and try again." });
     } finally {
       setIsLoading(false);
     }
@@ -208,21 +198,30 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen pt-10 bg-gradient-to-br from-gray-900 via-gray-800 to-black">
+    <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/20 to-purple-600/20"></div>
-        <div className="relative min-h-[98vh] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-8">
-          {/* Role Selection Screen */}
-          {showRoleSelection ? (
-            <RoleSelection onRoleSelect={handleRoleSelect} />
-          ) : (
-            /* Auth Form Screen */
-            <div className="grid lg:grid-cols-2 gap-12 items-start">
-              {/* Left Side - Auth Form */}
-              <div className="order-2 lg:order-1">
-                <ErrorBoundary>
+      {/* Page background accent */}
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-40 left-1/2 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-indigo-500/5 blur-[120px] dark:bg-indigo-500/8" />
+        <div className="absolute bottom-0 right-0 h-[400px] w-[400px] rounded-full bg-violet-500/5 blur-[100px] dark:bg-violet-500/8" />
+      </div>
+
+      <div className="mx-auto max-w-7xl px-4 pb-16 pt-24 sm:px-6 lg:px-8">
+        {showRoleSelection ? (
+          /* ── Role selection ── */
+          <div className="flex min-h-[calc(100vh-10rem)] items-center justify-center">
+            <div className="w-full animate-fadeIn">
+              <RoleSelection onRoleSelect={handleRoleSelect} />
+            </div>
+          </div>
+        ) : (
+          /* ── Auth form + hero ── */
+          <div className="grid min-h-[calc(100vh-10rem)] grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:items-center lg:gap-16">
+            {/* Left — form */}
+            <div className="order-2 w-full animate-fadeIn lg:order-1">
+              <ErrorBoundary>
+                <div className="mx-auto w-full max-w-md">
                   <AuthForm
                     isLogin={isLogin}
                     selectedRole={selectedRole}
@@ -234,6 +233,8 @@ export default function AuthPage() {
                     setFullName={setFullName}
                     instituteName={instituteName}
                     setInstituteName={setInstituteName}
+                    inviteCode={inviteCode}
+                    setInviteCode={setInviteCode}
                     errors={errors}
                     setErrors={setErrors}
                     isLoading={isLoading}
@@ -243,19 +244,20 @@ export default function AuthPage() {
                     onToggleLogin={handleToggleLogin}
                     onForgotPassword={handleOpenForgotPassword}
                   />
-                </ErrorBoundary>
-              </div>
+                </div>
+              </ErrorBoundary>
+            </div>
 
-              {/* Right Side - Hero Content */}
-              <div className="order-1 lg:order-2">
-                <HeroSection />
+            {/* Right — hero */}
+            <div className="order-1 w-full animate-fadeIn lg:order-2 lg:sticky lg:top-28">
+              <div className="mx-auto w-full max-w-md lg:max-w-none">
+                <HeroSection selectedRole={selectedRole} />
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Forgot Password Modal */}
       <ForgotPasswordModal
         show={showForgotPassword}
         onClose={() => {

@@ -1,12 +1,71 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { auth, db } from "@/lib/firebaseConfig";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
+
+/**
+ * Cookie utility helpers for writing/deleting client cookies
+ */
+const setCookie = (name, value, days = 7) => {
+  if (typeof window !== "undefined") {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+    const isSecure = process.env.NODE_ENV === "production";
+    document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=Lax${isSecure ? "; Secure" : ""}`;
+  }
+};
+
+const AUTH_TOKEN_COOKIE_DURATION_HOURS = 1;
+
+const setAuthTokenCookie = (token) => {
+  setCookie("authToken", token, AUTH_TOKEN_COOKIE_DURATION_HOURS / 24);
+};
+
+const deleteCookie = (name) => {
+  if (typeof window !== "undefined") {
+    const isSecure = process.env.NODE_ENV === "production";
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax${isSecure ? "; Secure" : ""}`;
+  }
+};
+
+const AUTH_SENSITIVE_CACHE_PATTERNS = [
+  /auth/i,
+  /user/i,
+  /session/i,
+  /token/i,
+  /profile/i,
+  /secure/i,
+];
+
+export const clearAuthSensitiveCaches = async () => {
+  if (typeof window === "undefined" || !("caches" in window)) return;
+
+  try {
+    const cacheKeys = await caches.keys();
+    const authCacheKeys = cacheKeys.filter((key) =>
+      AUTH_SENSITIVE_CACHE_PATTERNS.some((pattern) => pattern.test(key))
+    );
+
+    await Promise.all(authCacheKeys.map((key) => caches.delete(key)));
+  } catch (cacheErr) {
+    console.warn("Failed to clear auth-sensitive caches:", cacheErr);
+  }
+};
 
 /**
  * Provides authentication state and user profile information.
  * Tracks Firebase authentication changes and exposes auth-related utilities.
- * @returns {Object} Authentication state, user profile data, loading state, errors, and helper methods.
+ * @returns {{
+ * user: Object|null,
+ * userProfile: Object|null,
+ * loading: boolean,
+ * error: string|null,
+ * signOut: Function,
+ * isAuthenticated: boolean,
+ * hasProfile: boolean
+ * }} Authentication state and helper methods.
  */
 export const useAuth = () => {
   const [user, setUser] = useState(null);
@@ -14,57 +73,124 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-
   useEffect(() => {
-     if (!auth) {
-    setLoading(false);
-    return;
-  }
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
+
+    let unsubscribeSnapshot = null;
+    let tokenRefreshInterval = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      // Clean up previous snapshot listener and token refresh interval if active
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+      }
+      if (tokenRefreshInterval) {
+        clearInterval(tokenRefreshInterval);
+        tokenRefreshInterval = null;
+      }
+
       try {
         if (firebaseUser) {
-          // Get user profile from Firestore
-          const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+          setUser(firebaseUser);
 
-          if (userDoc.exists()) {
-            const profileData = userDoc.data();
-            setUser(firebaseUser);
-            setUserProfile(profileData);
-          } else {
-            // User exists in Auth but no profile in Firestore
-            setUser(firebaseUser);
-            setUserProfile(null);
-          }
+          // Proactively refresh the Firebase ID token every 55 minutes so the
+          // authToken cookie never goes stale before the middleware rejects it.
+          // Firebase tokens expire after 60 minutes; 55-minute interval gives a
+          // 5-minute buffer for network latency and clock drift.
+          tokenRefreshInterval = setInterval(async () => {
+            try {
+              const freshToken = await firebaseUser.getIdToken(true);
+              setAuthTokenCookie(freshToken);
+            } catch {
+              // Network error during background refresh; the next interval will retry.
+            }
+          }, 55 * 60 * 1000);
+
+          // Listen to the user profile document in real-time
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          unsubscribeSnapshot = onSnapshot(userDocRef, async (userDoc) => {
+            try {
+              if (userDoc.exists()) {
+                const profileData = userDoc.data();
+                setUserProfile(profileData);
+
+                // Sync auth token and role in cookies
+                const token = await firebaseUser.getIdToken();
+                setAuthTokenCookie(token);
+                setCookie("userRole", profileData.role, 7);
+              } else {
+                // User exists in Auth but no profile in Firestore yet
+                setUserProfile(null);
+                deleteCookie("authToken");
+                deleteCookie("userRole");
+              }
+              setLoading(false);
+            } catch (snapErr) {
+              console.error("Error in profile snapshot listener:", snapErr);
+              setError(snapErr.message);
+              setLoading(false);
+            }
+          }, (snapError) => {
+            console.warn("Profile snapshot subscription error:", snapError.message);
+            // Handle permission denied or other errors gracefully without locking loading state
+            setLoading(false);
+          });
         } else {
           setUser(null);
           setUserProfile(null);
+
+          // Clear auth cookies
+          deleteCookie("authToken");
+          deleteCookie("userRole");
+
+          // Clear only auth-sensitive caches and preserve static/app shell caches
+          await clearAuthSensitiveCaches();
+          setLoading(false);
         }
 
         setError(null);
       } catch (err) {
-        console.error("Auth state change error:", err);
         setError(err.message);
         setUser(null);
         setUserProfile(null);
-      } finally {
+        deleteCookie("authToken");
+        deleteCookie("userRole");
         setLoading(false);
       }
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+      }
+      if (tokenRefreshInterval) {
+        clearInterval(tokenRefreshInterval);
+      }
+    };
   }, []);
 
   /**
    * Signs out the currently authenticated user and clears local auth state.
    * @returns {Promise<void>} Resolves when the user is successfully signed out.
-  */
+   */
   const signOut = async () => {
     try {
-      await auth.signOut();
+      await firebaseSignOut(auth);
       setUser(null);
       setUserProfile(null);
+
+      // Critical Security Fix: Clear authentication cookies to prevent zombie sessions in Next.js middleware
+      deleteCookie("authToken");
+      deleteCookie("userRole");
+
+      // Clear only auth-sensitive caches and preserve static/app shell caches
+      await clearAuthSensitiveCaches();
     } catch (err) {
-      console.error("Sign out error:", err);
       setError(err.message);
     }
   };

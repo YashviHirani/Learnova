@@ -1,35 +1,116 @@
+// app/api/exceptions/list/route.js
+
 import { connectDb } from "@/lib/mongodb";
-import { verifyFirebaseToken } from "@/lib/firebase-admin";
-import { jsonError, jsonSuccess } from "@/lib/api-response";
+import { requireRole } from "@/lib/rbac";
+import { withErrorHandler } from "@/lib/error-handler";
+import { jsonSuccess } from "@/lib/api-response";
+import { AppError } from "@/lib/errors";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { escapeRegex, sanitizeSortField } from "@/utils/mongoUtils";
 
-export async function GET(request) {
-  try {
-    const authorization = request.headers.get("authorization");
-    const token = authorization?.split(" ")[1];
+// Forces Next.js to treat this as a runtime API instead of trying to statically compile it during npm run build
+export const dynamic = "force-dynamic";
 
-    const decodedToken = await verifyFirebaseToken(token);
+const ALLOWED_SORT_FIELDS = new Set([
+  "createdAt",
+  "updatedAt",
+  "status",
+  "date",
+  "studentEmail",
+  "reason",
+]);
 
-    if (!decodedToken) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+export const GET = withErrorHandler(async (request) => {
+  const { payload: decodedToken, profile } = await requireRole(request, ["admin", "teacher", "student"]);
+  const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+  const rateLimitResult = await checkRateLimit(`exceptions_list_${ip}_${decodedToken.uid}`);
+  if (!rateLimitResult.allowed) {
+    throw new AppError("Too many attempts. Please try again later.", 429);
+  }
+  const { searchParams } = new URL(request.url);
+
+    // Pagination - extract and validate query parameters
+    const pageParam = searchParams.get("page");
+    const limitParam = searchParams.get("limit");
+    
+    const page = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1;
+    const limit = limitParam ? Math.min(100, Math.max(1, parseInt(limitParam, 10))) : 10;
+
+    // Validate pagination parameters
+    if (isNaN(page) || isNaN(limit)) {
+      const { ValidationError } = require("@/lib/errors");
+      throw new ValidationError("Invalid pagination parameters");
     }
 
-    const db = await connectDb();
+    // Search — escape metacharacters and cap length to prevent ReDoS
+    const rawSearch = searchParams.get("search") || "";
+    const search = escapeRegex(rawSearch);
 
-    const exceptions = await db
-      .collection("exceptions")
-      .find({ status: "pending" })
-      .sort({ createdAt: -1 })
+    // Sorting — validate against an explicit allowlist to prevent field-name injection
+    const sortBy = sanitizeSortField(
+      searchParams.get("sortBy"),
+      ALLOWED_SORT_FIELDS,
+      "createdAt"
+    );
+    const sortOrder = searchParams.get("sortOrder") === "asc" ? 1 : -1;
+
+    const skip = (page - 1) * limit;
+
+    const db = await connectDb();
+    const collection = db.collection("exceptions");
+
+    // Base query
+    const query = {
+      status: "pending",
+    };
+
+    // Role-based filtering
+    if (profile.role === "student") {
+      query.studentEmail = decodedToken.email;
+    }
+
+    // Search filter
+    if (search) {
+      query.$or = [
+        {
+          reason: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          studentEmail: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+      ];
+    }
+
+    // Total count
+    const total = await collection.countDocuments(query);
+
+    // Fetch data
+    const exceptions = await collection
+      .find(query)
+      .sort({ [sortBy]: sortOrder })
+      .skip(skip)
+      .limit(limit)
       .toArray();
 
-    return Response.json(
+    const totalPages = Math.ceil(total / limit);
+
+    return jsonSuccess(
       {
-        success: true,
-        data: exceptions,
+        exceptions,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages,
+          hasNextPage: page < totalPages,
+        },
       },
-      { status: 200 },
+      200
     );
-  } catch (error) {
-    console.error("Exception fetch error:", error);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
+});

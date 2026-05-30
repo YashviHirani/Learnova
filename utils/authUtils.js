@@ -1,8 +1,15 @@
-import { doc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebaseConfig";
 import { USER_ROLES } from "@/constants/userRoles";
 import { initializeUserStats } from "@/services/statsService";
-
+import {
+  validateRequired,
+  validateEmail,
+  validatePassword,
+  validateName,
+} from "./formValidation";
+/**
+ * Default password requirement validation message.
+ * @type {string}
+ */
 export const PASSWORD_REQUIREMENTS_MESSAGE =
   "Password must contain at least 8 characters, including uppercase, lowercase, number, and special character.";
 
@@ -55,12 +62,14 @@ export const getErrorMessage = (errorCode) => {
     case "auth/too-many-requests":
       return "Too many failed attempts. Please try again later.";
     default:
-      return null;
+      return "Authentication failed. Please check your credentials and try again.";
   }
 };
 
 /**
- * Creates and stores a user profile in Firestore.
+ * Creates and stores a user profile via the server-side role validation
+ * endpoint. The role is cryptographically signed into the Firebase token
+ * via custom claims so the middleware can trust it.
  * @param {Object} user - Firebase authenticated user object.
  * @param {string} role - Role assigned to the user.
  * @param {Object} additionalData - Additional profile information.
@@ -73,29 +82,57 @@ export const createUserProfile = async (user, role, additionalData = {}) => {
     throw new Error("Full name is required");
   }
 
-  const userProfile = {
-    uid: user.uid,
-    email: user.email,
-    fullName: fullName.trim(),
-    role,
-    createdAt: new Date(),
-    emailVerified: user.emailVerified,
-    lastLogin: new Date(),
-  };
+  const idToken = await user.getIdToken();
 
-  if (role === USER_ROLES.INSTITUTE) {
-    if (!instituteName?.trim()) {
-      throw new Error("Institute name is required");
-    }
-    userProfile.instituteName = instituteName.trim();
+  const response = await fetch("/api/auth/set-role", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      role,
+      fullName: fullName.trim(),
+      ...(role === USER_ROLES.INSTITUTE && instituteName?.trim()
+        ? { instituteName: instituteName.trim() }
+        : {}),
+      ...(additionalData.inviteCode
+        ? { inviteCode: additionalData.inviteCode }
+        : {}),
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok || !data.success) {
+    throw new Error(
+      data.error || "Failed to create user profile. Please try again."
+    );
   }
 
-  await setDoc(doc(db, "users", user.uid), userProfile);
-  
-  // Initialize their empty dashboard stats
-  await initializeUserStats(user.uid);
+  try {
+    // Force refresh the token immediately after server-side custom claim assignment.
+    // This ensures the middleware receives an auth token with the role claim
+    // before the first redirect, avoiding expensive edge-runtime fallback lookups.
+    await user.getIdToken(true);
+  } catch (tokenError) {
+    console.error(
+      "[createUserProfile] Failed to refresh auth token after role assignment:",
+      tokenError?.message || tokenError,
+    );
+    throw new Error(
+      "Failed to update authentication token after signup. Please try again."
+    );
+  }
 
-  return userProfile;
+  // Initialize their empty dashboard stats
+  try {
+    await initializeUserStats(user.uid);
+  } catch (error) {
+    console.log("Stats init failed", error);
+  }
+
+  return data.data.userProfile;
 };
 
 /**
@@ -105,7 +142,7 @@ export const createUserProfile = async (user, role, additionalData = {}) => {
  * @returns {Object} Validation result containing status and error messages.
  */
 export const validateForm = (formData, isLogin) => {
-  const { selectedRole, email, password, fullName, instituteName } = formData;
+  const { selectedRole, email, password, fullName, instituteName, inviteCode } = formData;
   const errors = {};
 
   // Role is always required
@@ -113,30 +150,42 @@ export const validateForm = (formData, isLogin) => {
     errors.role = "Please select your role";
   }
 
-  if (!email) {
-    errors.email = "Email is required";
-  } else if (!/\S+@\S+\.\S+/.test(email)) {
-    errors.email = "Please enter a valid email";
+  const emailValidation = validateEmail(email);
+  if (emailValidation !== true) {
+    errors.email = emailValidation;
   }
 
-  if (!password) {
-    errors.password = "Password is required";
-  } else if (!isLogin) {
-    const passwordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
-    if (!passwordRegex.test(password)) {
-      errors.password =
-        "Password must be 8+ characters and include upper, lower, number, and special character (e.g. Test@123)";
-    }
+  const passwordValidation = isLogin
+    ? validateRequired(password, "Password")
+    : validatePassword(password);
+  if (passwordValidation !== true) {
+    errors.password = passwordValidation;
   }
 
   if (!isLogin) {
-    if (!fullName?.trim()) {
-      errors.fullName = "Full name is required";
+    const fullNameValidation = validateName(fullName, "Full name");
+    if (fullNameValidation !== true) {
+      errors.fullName = fullNameValidation;
     }
 
-    if (selectedRole === USER_ROLES.INSTITUTE && !instituteName?.trim()) {
-      errors.instituteName = "Institute name is required";
+    if (selectedRole === USER_ROLES.INSTITUTE) {
+      const instituteNameValidation = validateRequired(
+        instituteName,
+        "Institute name",
+      );
+      if (instituteNameValidation !== true) {
+        errors.instituteName = instituteNameValidation;
+      }
+    }
+
+    if (selectedRole === USER_ROLES.TEACHER || selectedRole === USER_ROLES.INSTITUTE) {
+      const inviteCodeValidation = validateRequired(
+        inviteCode,
+        "Invite code"
+      );
+      if (inviteCodeValidation !== true) {
+        errors.inviteCode = inviteCodeValidation;
+      }
     }
   }
 
@@ -171,7 +220,6 @@ export const redirectBasedOnRole = (role, router) => {
         router.push("/profile");
     }
   } catch (err) {
-    console.error("Navigation error:", err);
     throw new Error("Navigation failed. Please try refreshing the page.");
   }
 };
