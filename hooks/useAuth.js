@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { auth, db } from "@/lib/firebaseConfig";
 import { onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth";
-import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 
 /**
  * Cookie utility helpers for writing/deleting client cookies
@@ -40,15 +40,16 @@ const AUTH_SENSITIVE_CACHE_PATTERNS = [
 ];
 
 export const clearAuthSensitiveCaches = async () => {
-  if (typeof window === "undefined" || !("caches" in window)) return;
+  const cacheStorage = globalThis?.caches;
+  if (!cacheStorage) return;
 
   try {
-    const cacheKeys = await caches.keys();
+    const cacheKeys = await cacheStorage.keys();
     const authCacheKeys = cacheKeys.filter((key) =>
       AUTH_SENSITIVE_CACHE_PATTERNS.some((pattern) => pattern.test(key))
     );
 
-    await Promise.all(authCacheKeys.map((key) => caches.delete(key)));
+    await Promise.all(authCacheKeys.map((key) => cacheStorage.delete(key)));
   } catch (cacheErr) {
     console.warn("Failed to clear auth-sensitive caches:", cacheErr);
   }
