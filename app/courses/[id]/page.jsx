@@ -10,7 +10,8 @@ import {
   Sparkles, 
   CheckCircle,
   PlayCircle,
-  Users
+  Users,
+  Trash2
 } from "lucide-react";
 import ShareButton from "@/components/ui/ShareButton";
 import StudyDeck from "@/components/flashcards/StudyDeck";
@@ -42,6 +43,8 @@ export default function CourseDetailPage() {
   const [originText, setOriginText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [lastProgress, setLastProgress] = useState(null);
+  const [notes, setNotes] = useState([]);
+  const [noteText, setNoteText] = useState("");
 
   // --- AI TIMELINE FEATURE STATES ---
   const videoRef = useRef(null);
@@ -79,6 +82,14 @@ export default function CourseDetailPage() {
           setLastProgress(allProgress[params.id]);
         }
       }
+
+      // Load timestamp notes
+      const savedNotes = localStorage.getItem(`video_notes_${params.id}`);
+      if (savedNotes) {
+        try {
+          setNotes(JSON.parse(savedNotes));
+        } catch (e) { console.error("Failed to parse notes", e); }
+      }
     } catch (e) {
       console.error("Failed to load progress:", e);
     }
@@ -99,6 +110,15 @@ export default function CourseDetailPage() {
       localStorage.setItem("learnova_continue_learning", JSON.stringify(allProgress));
     } catch (e) { console.error(e); }
   };
+
+  // Persist notes when they change
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem(`video_notes_${params.id}`, JSON.stringify(notes));
+    }
+  }, [notes, mounted, params.id]);
+
+  const toggleStudyPod = () => setIsPodActive(!isPodActive);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -301,6 +321,63 @@ export default function CourseDetailPage() {
                 ))}
               </div>
             )}
+
+            {/* 📝 VIDEO TIMESTAMP NOTES SECTION 📝 */}
+            <div className="mt-8 pt-6 border-t border-zinc-800/60">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Personal Timestamp Notes</h3>
+                <span className="text-[10px] text-zinc-500 font-medium px-2 py-0.5 rounded-full bg-zinc-800/50">{notes.length} Total</span>
+              </div>
+              
+              <div className="flex gap-2 mb-6">
+                <input 
+                  type="text"
+                  placeholder="Take a quick note at the current video time..."
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
+                  className="flex-1 px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+                <button 
+                  onClick={handleAddNote}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold transition-all shrink-0 shadow-lg shadow-indigo-600/10 active:scale-95"
+                >
+                  Save Note
+                </button>
+              </div>
+
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                {notes.length > 0 ? (
+                  notes.map((note) => (
+                    <div 
+                      key={note.id}
+                      className="group relative bg-zinc-950/40 border border-zinc-800/50 rounded-xl p-4 hover:border-zinc-700/80 hover:bg-zinc-900/40 transition-all cursor-pointer"
+                      onClick={() => handleSeek(note.timestamp)}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex gap-4">
+                          <span className="text-indigo-400 font-mono text-xs font-bold shrink-0 mt-0.5 px-2 py-1 rounded bg-indigo-500/5 border border-indigo-500/10">
+                            {note.formattedTime}
+                          </span>
+                          <p className="text-sm text-zinc-300 leading-relaxed font-medium">{note.text}</p>
+                        </div>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}
+                          className="opacity-0 group-hover:opacity-100 p-2 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                          title="Delete note"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-10 rounded-2xl bg-zinc-950/20 border border-dashed border-zinc-800/80">
+                    <p className="text-sm text-zinc-500 italic">No timestamp notes yet. Save a moment to revisit it later.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="mb-8 max-w-3xl">
