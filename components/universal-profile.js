@@ -44,6 +44,7 @@ import {
 
 import { useAuth } from "@/hooks/useAuth";
 import { Navbar } from "./Navbar";
+import ActivityHeatmap from "@/components/activity/ActivityHeatmap";
 import { apiFetch } from "@/lib/apiClient";
 
 
@@ -821,6 +822,10 @@ export default function UniversalProfile() {
               </p>
             </div>
           ))}
+        </div>
+
+        <div className="mt-8">
+          <ActivityHeatmap />
         </div>
 
         {/* Tabs */}

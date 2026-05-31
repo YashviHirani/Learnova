@@ -36,17 +36,11 @@ const CommentSection = ({ noticeId }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const storageKey = getCommentStorageKey(noticeId);
-
-  // 2. Load existing fake comments or persistent local storage comments
-
-  // const storageKey = `comments_${noticeId || "global"}`;
-
-
   useEffect(() => {
-    const savedComments = localStorage.getItem(storageKey);
+    const savedComments = safeLocalStorageGet(storageKey, null);
 
     if (savedComments) {
-      setComments(JSON.parse(savedComments));
+      setComments(normalizeStoredComments(savedComments));
     } else {
       const defaultComments = [
         {

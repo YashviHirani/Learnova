@@ -1,4 +1,5 @@
 import { jsonError, jsonSuccess } from "@/lib/api-response";
+import { authorizeCronRequest } from "@/lib/cronAuth";
 import { connectDb } from "@/lib/mongodb";
 
 /**
@@ -14,9 +15,9 @@ import { connectDb } from "@/lib/mongodb";
  */
 export const GET = async (request) => {
   // Verify this is called by Vercel Cron (or an authorised internal caller)
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return jsonError("Unauthorized", 401);
+  const cronAuth = authorizeCronRequest(request);
+  if (!cronAuth.authorized) {
+    return cronAuth.response;
   }
 
   try {
