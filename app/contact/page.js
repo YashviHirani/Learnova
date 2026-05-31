@@ -156,8 +156,14 @@ export default function Contact() {
       const templateParams = {
         from_name: formData.name,
         reply_to: formData.email,
+        from_email: formData.email,
         company_name: formData.company || "Not Provided",
         message: formData.message,
+        subject: `New Contact Form Message from ${formData.name}`,
+        to_email: "test-admin@learnova.com",
+        to_name: "Learnova Admin",
+        email: "test-admin@learnova.com",
+        receiver_email: "test-admin@learnova.com",
       };
       await emailjs.send(
         process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
