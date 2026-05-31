@@ -425,3 +425,7 @@ Found a security vulnerability? Please report it responsibly to **security@learn
 ### 🎯 Goal
 Improve onboarding experience for new contributors and users by making README more structured, readable, and professional.
 */ 
+
+
+### GSSoC Attendance Passcode Masking Guidelines
+- Always mask attendance code states internally.
