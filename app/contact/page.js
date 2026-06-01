@@ -17,13 +17,20 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Twitter,
   Linkedin,
   Facebook,
   Sparkles,
 } from "lucide-react";
 import emailjs from "@emailjs/browser";
 import toast from "react-hot-toast";
+
+function XIcon({ size = 18, className }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.91-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
 
 export default function Contact() {
   const { theme } = useTheme();
@@ -216,9 +223,9 @@ export default function Contact() {
 
   const socialLinks = [
     {
-      icon: Twitter,
-      label: "Twitter",
-      href: "https://twitter.com/learnova",
+      icon: XIcon,
+      label: "X",
+      href: "https://x.com/learnova",
       color: "hover:text-blue-500 hover:border-blue-300 dark:hover:text-blue-400 dark:hover:border-blue-400/50",
     },
     {
