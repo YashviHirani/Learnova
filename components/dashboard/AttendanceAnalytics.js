@@ -97,12 +97,14 @@ const AttendanceAnalytics = ({ userId, recentActivity = [] }) => {
   useEffect(() => {
     let isMounted = true;
 
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
     const fetchAttendance = async () => {
+      if (!userId) {
+        if (isMounted) {
+          setLoading(false);
+        }
+        return;
+      }
+
       try {
         if (isMounted) {
           setLoading(true);
@@ -157,7 +159,6 @@ const AttendanceAnalytics = ({ userId, recentActivity = [] }) => {
       isMounted = false;
     };
   }, [userId]);
-
   const subjectPerformance = useMemo(() => {
     const subjectMap = new Map();
 
