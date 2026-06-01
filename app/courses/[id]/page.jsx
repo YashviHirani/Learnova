@@ -23,6 +23,7 @@ import toast from "react-hot-toast";
 import { routeParamSchema } from "@/lib/validations/auth";
 import MarkdownRenderer from "@/components/ui/MarkdownRenderer";
 import { apiFetch } from "@/lib/apiClient";
+import { addRecentActivity } from "@/utils/recentActivity";
 
 
 export default function CourseDetailPage() {
@@ -141,6 +142,21 @@ export default function CourseDetailPage() {
       toast.success(`Jumped to ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`);
     }
   };
+
+  useEffect(() => {
+    try {
+      // Track this course view in recent activity
+      addRecentActivity({
+        id: `course_${course.id}`,
+        title: course.title,
+        type: "Course",
+        path: `/courses/${course.id}`,
+      });
+    } catch (e) {
+      // non-blocking
+      console.error("failed to record recent activity", e);
+    }
+  }, [params.id]);
   if (!mounted) return null;
 
   // Mock course data matching params.id
