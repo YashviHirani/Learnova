@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 import createNextIntlPlugin from 'next-intl/plugin';
 import withPWAInit from '@ducanh2912/next-pwa';
+import webpack from 'webpack';
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.js');
 
@@ -108,6 +109,11 @@ const nextConfig = {
       fs: false,
       encoding: false,
     };
+    config.plugins.push(
+      new webpack.ProvidePlugin({
+        crypto: ['crypto', 'webcrypto'],
+      }),
+    );
     return config;
   },
   eslint: {
