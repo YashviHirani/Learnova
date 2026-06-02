@@ -82,9 +82,20 @@ export default function FaceRecognizer({ authUser }) {
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);
       }
+
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
       setMessage("Requesting camera permission...");
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
-      if (!isMounted.current || abortControllerRef.current?.signal.aborted) {
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode },
+      });
+
+      if (!isMounted.current || signal.aborted) {
         stream.getTracks().forEach((t) => t.stop());
         return;
       }
@@ -92,8 +103,10 @@ export default function FaceRecognizer({ authUser }) {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.onloadedmetadata = () => {
-          if (!isMounted.current || abortControllerRef.current?.signal.aborted) return;
-          videoRef.current.play().catch((e) => console.warn("Play interrupted", e));
+          if (!isMounted.current || signal.aborted) return;
+          videoRef.current
+            .play()
+            .catch((e) => console.warn("Play interrupted", e));
           setIsLoading(false);
           setLivenessState("DETECTING_FACE");
           blinkStateRef.current = {
@@ -103,14 +116,16 @@ export default function FaceRecognizer({ authUser }) {
             lastBlinkTime: 0,
           };
           setBlinkPrompt("");
-          processVideo();
+
+          processVideo(signal);
         };
       }
       setMessage("Camera access granted ✅");
       setFinished(false);
       setAttendanceState("idle");
     } catch (err) {
-      if (!isMounted.current || abortControllerRef.current?.signal.aborted) return;
+      const signal = abortControllerRef.current?.signal;
+      if (!isMounted.current || signal?.aborted) return;
       setIsLoading(false);
       if (err.name === "NotAllowedError") {
         setMessage("Camera access denied. Please enable camera permissions in browser settings.");
@@ -127,7 +142,10 @@ export default function FaceRecognizer({ authUser }) {
 
   useEffect(() => {
     isMounted.current = true;
-    abortControllerRef.current = new AbortController();
+    let isEffectMounted = true;
+    const localAbortController = new AbortController();
+    abortControllerRef.current = localAbortController;
+    const signal = localAbortController.signal;
 
     const loadModelsViaWorker = () => {
       return new Promise((resolve, reject) => {
@@ -159,7 +177,7 @@ export default function FaceRecognizer({ authUser }) {
 
     const loadModels = async () => {
       try {
-        if (!isMounted.current || abortControllerRef.current.signal.aborted) return;
+        if (!isEffectMounted || signal.aborted) return;
         setMessage("Loading AI models...");
         setIsLoading(true);
 
@@ -176,12 +194,11 @@ export default function FaceRecognizer({ authUser }) {
           faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
         ]);
 
-        if (!isMounted.current || abortControllerRef.current.signal.aborted) return;
-        setModelsReady(true);
+        if (!isEffectMounted || signal.aborted) return;
         setMessage("Models loaded ✅ Starting webcam...");
         startVideo();
       } catch (err) {
-        if (!isMounted.current || abortControllerRef.current.signal.aborted) return;
+        if (!isEffectMounted || signal.aborted) return;
         setMessage("Failed to load models.");
         setIsLoading(false);
         setFinished(true);
@@ -190,10 +207,13 @@ export default function FaceRecognizer({ authUser }) {
 
     const startVideo = async () => {
       try {
-        if (!isMounted.current || abortControllerRef.current.signal.aborted) return;
+        if (!isEffectMounted || signal.aborted) return;
         setMessage("Requesting camera permission...");
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
-        if (!isMounted.current || abortControllerRef.current.signal.aborted) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode },
+        });
+
+        if (!isEffectMounted || signal.aborted) {
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
@@ -201,21 +221,26 @@ export default function FaceRecognizer({ authUser }) {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.onloadedmetadata = () => {
-            if (!isMounted.current || abortControllerRef.current.signal.aborted) return;
-            videoRef.current.play().catch((e) => console.warn("Play interrupted", e));
+            if (!isEffectMounted || signal.aborted) return;
+            videoRef.current
+              .play()
+              .catch((e) => console.warn("Play interrupted", e));
             setIsLoading(false);
             setMessage("Building face models...");
-            buildFaceMatcher().then(() => {
-              if (!isMounted.current || abortControllerRef.current.signal.aborted) return;
+
+            buildFaceMatcher(signal).then(() => {
+              if (!isEffectMounted || signal.aborted) return;
               setMessage("Looking for faces...");
               setLivenessState("DETECTING_FACE");
-              blinkStateRef.current.requiredBlinks = Math.floor(Math.random() * 2) + 1;
-              processVideo();
+
+              blinkStateRef.current.requiredBlinks =
+                Math.floor(Math.random() * 2) + 1;
+              processVideo(signal);
             });
           };
         }
       } catch (err) {
-        if (!isMounted.current || abortControllerRef.current.signal.aborted) return;
+        if (!isEffectMounted || signal.aborted) return;
         setIsLoading(false);
         if (err.name === "NotAllowedError" || err.message?.includes("Permission denied")) {
           setMessage("Camera access denied. Please enable camera permissions in browser settings.");
@@ -231,13 +256,14 @@ export default function FaceRecognizer({ authUser }) {
     }
 
     return () => {
+      isEffectMounted = false;
       isMounted.current = false;
-      if (abortControllerRef.current) abortControllerRef.current.abort();
-      if (modelWorkerRef.current) {
-        modelWorkerRef.current.terminate();
-        modelWorkerRef.current = null;
+      localAbortController.abort();
+
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
       }
-      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+
       if (activeStreamRef.current) {
         activeStreamRef.current.getTracks().forEach((t) => t.stop());
         activeStreamRef.current = null;
@@ -259,9 +285,10 @@ export default function FaceRecognizer({ authUser }) {
     };
   }, []);
 
-  const buildFaceMatcher = async () => {
+  const buildFaceMatcher = async (signal) => {
     if (!labels || labels.length === 0) return;
-    if (!isMounted.current || abortControllerRef.current?.signal.aborted) return;
+    if (!isMounted.current || signal?.aborted) return;
+
     const faceapi = await import("face-api.js");
     faceapiRef.current = faceapi;
 
@@ -269,7 +296,8 @@ export default function FaceRecognizer({ authUser }) {
       await Promise.all(
         labels.map(async (student) => {
           try {
-            if (!isMounted.current || abortControllerRef.current?.signal.aborted) return null;
+            if (!isMounted.current || signal?.aborted) return null;
+            // Check if pre-calculated face descriptor exists in the database
             if (
               student.faceDescriptor &&
               Array.isArray(student.faceDescriptor) &&
@@ -282,13 +310,16 @@ export default function FaceRecognizer({ authUser }) {
             if (!student.hasImage) return null;
             const imgUrl = `/api/images?id=${student._id}`;
             const img = await faceapi.fetchImage(imgUrl);
-            if (!isMounted.current || abortControllerRef.current?.signal.aborted) return null;
+            if (!isMounted.current || signal?.aborted) return null;
             const detection = await faceapi
               .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
               .withFaceLandmarks()
               .withFaceDescriptor();
-            if (detection && isMounted.current) {
-              return new faceapi.LabeledFaceDescriptors(student.name, [detection.descriptor]);
+
+            if (detection && isMounted.current && !signal?.aborted) {
+              return new faceapi.LabeledFaceDescriptors(student.name, [
+                detection.descriptor,
+              ]);
             }
             return null;
           } catch (err) {
@@ -300,7 +331,7 @@ export default function FaceRecognizer({ authUser }) {
       )
     ).filter(Boolean);
 
-    if (!isMounted.current || abortControllerRef.current?.signal.aborted) return;
+    if (!isMounted.current || signal?.aborted) return;
     cachedDescriptorsRef.current = labeledFaceDescriptors;
 
     if (!labeledFaceDescriptors.length) {
@@ -311,28 +342,34 @@ export default function FaceRecognizer({ authUser }) {
     faceMatcherRef.current = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
   };
 
-  const processVideo = async () => {
+  const processVideo = async (signal) => {
     if (
       !videoRef.current ||
       !canvasRef.current ||
       !faceMatcherRef.current ||
       !isMounted.current ||
-      abortControllerRef.current?.signal.aborted
-    ) return;
+      signal?.aborted
+    ) {
+      return;
+    }
 
     const faceapi = await import("face-api.js");
     faceapiRef.current = faceapi;
-    if (!isMounted.current || abortControllerRef.current?.signal.aborted) return;
+    if (!isMounted.current || signal?.aborted) return;
     const video = videoRef.current;
 
     if (video.paused || video.ended || !video.videoWidth) {
-      if (isMounted.current && !finished) animationFrameId.current = requestAnimationFrame(processVideo);
+      if (isMounted.current && !finished && !signal?.aborted) {
+        animationFrameId.current = requestAnimationFrame(() => processVideo(signal));
+      }
       return;
     }
 
     const now = Date.now();
     if (now - lastDetectionTime.current < PROCESSING_INTERVAL_MS) {
-      if (isMounted.current && !finished) animationFrameId.current = requestAnimationFrame(processVideo);
+      if (isMounted.current && !finished && !signal?.aborted) {
+        animationFrameId.current = requestAnimationFrame(() => processVideo(signal));
+      }
       return;
     }
     lastDetectionTime.current = now;
@@ -355,7 +392,7 @@ export default function FaceRecognizer({ authUser }) {
       .withFaceLandmarks()
       .withFaceDescriptors();
 
-    if (!isMounted.current || abortControllerRef.current?.signal.aborted) return;
+    if (!isMounted.current || signal?.aborted) return;
 
     const resizedDetections = faceapi.resizeResults(detections, displaySize);
     const ctx = canvas.getContext("2d");
@@ -427,7 +464,7 @@ export default function FaceRecognizer({ authUser }) {
         }
       }
     } else {
-      if (isMounted.current && !abortControllerRef.current?.signal.aborted) {
+      if (isMounted.current && !signal?.aborted) {
         if (livenessState !== "AUTHENTICATED") {
           setMessage("No face detected");
           setLivenessState("DETECTING_FACE");
@@ -438,10 +475,12 @@ export default function FaceRecognizer({ authUser }) {
       }
     }
 
-    if (isMounted.current && !finished && !abortControllerRef.current?.signal.aborted) {
+    if (isMounted.current && !finished && !signal?.aborted) {
+      // Loop execution only if not finished
+      // To prevent race conditions, check if we just transitioned to AUTHENTICATED
       setLivenessState((currentLiveness) => {
-        if (currentLiveness !== "AUTHENTICATED" && isMounted.current) {
-          animationFrameId.current = requestAnimationFrame(processVideo);
+        if (currentLiveness !== "AUTHENTICATED" && isMounted.current && !signal?.aborted) {
+          animationFrameId.current = requestAnimationFrame(() => processVideo(signal));
         }
         return currentLiveness;
       });
