@@ -102,7 +102,7 @@ export const loginWithEmail = async (email, password, selectedRole) => {
     // Update last login
     await setDoc(doc(db, "users", user.uid), {
       lastLogin: new Date(),
-    });
+    }, { merge: true });
 
     return { success: true, userData: { role: userRole } };
   } catch (err) {
@@ -315,7 +315,7 @@ export const loginWithGoogle = async (selectedRole, isLogin, additionalData) => 
     // Update last login for existing users
     await setDoc(doc(db, "users", user.uid), {
       lastLogin: new Date(),
-    });
+    }, { merge: true });
 
     return { success: true, userData: { role: userRole || selectedRole } };
   } catch (err) {
