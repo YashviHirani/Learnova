@@ -94,7 +94,7 @@ const createPdfDownload = (notice) => {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setFillColor(243, 244, 246); // light slate background
-  
+
   // Calculate text width to make the badge width dynamic
   const catWidth = doc.getTextWidth(category);
   const badgeWidth = catWidth + 8;
@@ -106,7 +106,7 @@ const createPdfDownload = (notice) => {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
   doc.setTextColor(15, 23, 42); // Slate-900 (highly readable dark text)
-  
+
   // Split title to size to handle long titles wrapping
   const wrappedTitle = doc.splitTextToSize(notice.title || "Untitled Notice", contentWidth);
   let cursorY = 44;
@@ -119,14 +119,14 @@ const createPdfDownload = (notice) => {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(100, 116, 139); // Slate-500
-  
+
   const createdAt = notice.createdAt ? new Date(notice.createdAt) : new Date();
   const dateStr = createdAt.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
   const timeStr = createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  
+
   doc.text(`Author: ${notice.author || "Unknown"}`, margin, cursorY);
   doc.text(`Published: ${dateStr} at ${timeStr}`, margin + 62, cursorY);
-  
+
   // Color-coded priority badges matching UI
   const priority = (notice.priority || "medium").toLowerCase();
   doc.text("Priority:", margin + 130, cursorY);
@@ -144,7 +144,7 @@ const createPdfDownload = (notice) => {
   }
   doc.roundedRect(margin + 144, cursorY - 3.5, 18, 5, 1, 1, "F");
   doc.text(priority.toUpperCase(), margin + 146, cursorY - 0.1);
-  
+
   // Revert defaults
   doc.setFontSize(9);
   doc.setTextColor(100, 116, 139);
@@ -184,7 +184,7 @@ const createPdfDownload = (notice) => {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10.5);
   doc.setTextColor(51, 65, 85); // Slate-700
-  
+
   const lines = doc.splitTextToSize(notice.content || "", contentWidth);
   const lineHeight = 6.5;
 
@@ -195,13 +195,13 @@ const createPdfDownload = (notice) => {
       doc.setFontSize(8);
       doc.setTextColor(148, 163, 184);
       doc.text("Official Notice Board • Learnova", margin, pageHeight - 10);
-      
+
       doc.addPage();
-      
+
       // Indigo top bar on the second page
       doc.setFillColor(79, 70, 229);
       doc.rect(0, 0, pageWidth, 4, "F");
-      
+
       cursorY = margin + 10;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10.5);
@@ -283,12 +283,39 @@ const NoticeCard = ({ notice, isRead, onToggleRead, searchQuery, getRelativeTime
     }
   }, [notice]);
 
+  const handleCopyLink = useCallback(async () => {
+  const noticeUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/notices/${notice.id}`
+      : "";
+
+  try {
+    await navigator.clipboard.writeText(noticeUrl);
+
+    setCopyFeedback(true);
+
+    setTimeout(() => {
+      setCopyFeedback(false);
+    }, 2000);
+  } catch (err) {
+    console.error("Failed to copy notice link", err);
+  }
+}, [notice]);
+
   const handleShareNotice = useCallback(async () => {
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+    const noticeUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/notices/${notice.id}`
+        : "";
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.share === "function"
+    ) {
       try {
         await navigator.share({
           title: notice.title || "Notice",
-          text: exportText,
+          text: notice.content || "",
+          url: noticeUrl,
         });
         return;
       } catch (error) {
@@ -297,9 +324,16 @@ const NoticeCard = ({ notice, isRead, onToggleRead, searchQuery, getRelativeTime
         }
       }
     }
-
-    handleExportNotice();
-  }, [exportText, handleExportNotice, notice.title]);
+    try {
+      await navigator.clipboard.writeText(noticeUrl);
+      setCopyFeedback(true);
+      setTimeout(() => {
+        setCopyFeedback(false);
+      }, 2000);
+    } catch (err) {
+      console.error("Failed to copy notice URL", err);
+    }
+  }, [notice]);
 
   return (
     <motion.article
@@ -351,9 +385,8 @@ const NoticeCard = ({ notice, isRead, onToggleRead, searchQuery, getRelativeTime
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.15 }}
-            className={`text-xl font-semibold transition ${
-              isRead ? "text-slate-200" : "text-white"
-            }`}
+            className={`text-xl font-semibold transition ${isRead ? "text-slate-200" : "text-white"
+              }`}
           >
             {highlightMatch(notice.title, searchQuery)}
           </motion.h3>
@@ -365,11 +398,10 @@ const NoticeCard = ({ notice, isRead, onToggleRead, searchQuery, getRelativeTime
             onClick={onToggleRead}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className={`inline-flex items-center gap-2 rounded-3xl border px-4 py-2 text-sm font-semibold transition active:scale-95 ${
-              isRead
+            className={`inline-flex items-center gap-2 rounded-3xl border px-4 py-2 text-sm font-semibold transition active:scale-95 ${isRead
                 ? "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500"
                 : "border-indigo-500/40 bg-indigo-500/10 text-indigo-200 hover:bg-indigo-500/20"
-            }`}
+              }`}
             aria-label={isRead ? "Mark notice unread" : "Mark notice read"}
           >
             {isRead ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -410,6 +442,18 @@ const NoticeCard = ({ notice, isRead, onToggleRead, searchQuery, getRelativeTime
           >
             <Copy className="h-4 w-4" />
             Markdown
+          </motion.button>
+
+          <motion.button
+            type="button"
+            onClick={handleCopyLink}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="inline-flex items-center gap-2 rounded-3xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/20 active:scale-95"
+            aria-label={`Copy link for ${notice.title || "notice"}`}
+          >
+            <Copy className="h-4 w-4" />
+            Copy Link
           </motion.button>
 
           <motion.button
