@@ -118,7 +118,14 @@ export async function GET(request) {
     const profile = await getUserProfile(decodedToken.uid);
     const userRole = profile?.role || "student";
     const userId = decodedToken.uid;
-    const instituteId = profile?.instituteId || profile?.uid;
+    const instituteId = profile?.instituteId || profile?.uid || decodedToken.uid;
+
+    if (!instituteId) {
+      return new Response(JSON.stringify({ error: "Unauthorized: Missing institute configuration." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
     const rateLimitResult = await checkRateLimit(`notices_stream_${ip}_${userId}`);
@@ -233,9 +240,14 @@ export async function GET(request) {
                   if (memberTime === lastNoticeTime.getTime() && docId === lastNoticeId) {
                     continue;
                   }
+                  const docAudience = Array.isArray(doc.targetAudience)
+                    ? doc.targetAudience
+                    : typeof doc.targetAudience === "string"
+                    ? [doc.targetAudience]
+                    : [];
                   if (
-                    doc.targetAudience &&
-                    doc.targetAudience.includes(userRole) &&
+                    docAudience.includes(userRole) &&
+                    doc.instituteId &&
                     String(doc.instituteId) === String(instituteId)
                   ) {
                     sendEvent("new-notice", {
