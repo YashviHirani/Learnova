@@ -407,18 +407,12 @@ const StudentDashboard = () => {
       ) : (
         <div className="max-w-7xl mx-auto mt-6 px-6 relative z-20">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
-            <span className="text-sm text-gray-400">
-              Current Adaptive Layout Sequence:
-            </span>
-            <span
-              className={`text-xs px-3 py-1 rounded-full font-bold uppercase ${
-                skillPath === "advanced"
-                  ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
-                  : skillPath === "booster"
-                    ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
-                    : "bg-blue-500/20 text-blue-400 border border-white/10"
-              }`}
-            >
+            <span className="text-sm text-gray-400">Current Adaptive Layout Sequence:</span>
+            <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase ${
+              skillPath === 'advanced' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
+              skillPath === 'booster' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
+              'bg-blue-500/20 text-blue-400 border border-white/10'f
+            }`}>
               {skillPath} Sequence Active
             </span>
           </div>
