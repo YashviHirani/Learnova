@@ -107,6 +107,7 @@ export default function Footer() {
     { label: "Register", href: "/register" },
     { label: "Contributors", href: "/contributors" },
     { label: "Terms & Conditions", href: "/terms" },
+    { label: "Privacy Policy", href: "/privacy" },
     { label: "Streaks", href: "/streaks" },
     { label: "GitHub Codebase", href: "https://github.com/Premshaw23/Learnova", external: true },
     { label: "Discord Server", href: "https://discord.gg/", external: true },
