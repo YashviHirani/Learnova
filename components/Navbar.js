@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
-
+import { BrainCircuit } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -32,6 +32,7 @@ import {
   MessageSquareWarning,
   BellOff,
   HeartPulse,
+  Calendar,
 } from "lucide-react";
 
 // ── Animation Variants ──────────────────────────────────────────────────────
@@ -137,8 +138,10 @@ export function Navbar() {
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll, { passive: true });
+    // Initial check on mount or route change
+    onScroll();
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [pathname]);
 
   const handleClickOutside = useCallback((e) => {
     if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -251,8 +254,10 @@ export function Navbar() {
     { href: "/wellness", label: "Wellness", icon: HeartPulse },
     { href: "/productivity", label: "Focus", icon: Sparkles },
     { href: "/activity", label: "Activities", icon: Activity },
+    { href: "/calendar", label: "Calendar", icon: Calendar },
     { href: "/complaints", label: "Complaints", icon: MessageSquareWarning },
     { href: "/contact", label: "Contact", icon: Mail },
+    { href: "/StudyAI", label: "Study", icon: BrainCircuit },
   ];
 
   const userMenuItems = [
@@ -344,6 +349,7 @@ export function Navbar() {
             {/* Logo */}
             <Link
               href="/"
+              onClick={() => setIsMenuOpen(false)}
               className="flex items-center space-x-3 group shrink-0"
             >
               <motion.div
@@ -469,7 +475,7 @@ export function Navbar() {
                               <button
                                 onClick={markAllAsRead}
                                 className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                              >
+                               aria-label="Action button">
                                 Mark all read
                               </button>
                             )}
@@ -594,7 +600,7 @@ export function Navbar() {
                             role="menuitem"
                             onClick={handleLogout}
                             className="w-full flex items-center px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/8 transition-colors gap-2.5"
-                          >
+                           aria-label="Action button">
                             <LogOut className="h-4 w-4" /> Logout
                           </button>
                         </motion.div>
@@ -730,6 +736,7 @@ export function Navbar() {
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setIsMenuOpen(false)}
                   className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/8 transition-colors"
+                  aria-label="Close menu"
                 >
                   <X className="h-4 w-4 text-zinc-400" />
                 </motion.button>
